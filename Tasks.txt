@@ -1,0 +1,81 @@
+// 1. Creates the non-blocking IPv4/IPv6 socket, binds to the port, and calls listen().
+// Returns: The server_fd, or -1 on failure.
+int init_server_socket(int port);
+
+// 2. The core infinite loop. Monitors server_fd for new connections and client_fds for data.
+// Drops connections if OS limit (EMFILE) is reached.
+void run_event_loop(int server_fd);
+
+// 3. Called when server_fd is readable. Calls accept(), sets the new socket to non-blocking,
+// and adds it to the pollfd array.
+void handle_new_connection(int server_fd, struct pollfd *fds, int *nfds);
+
+// 4. Called when a client times out (5-10s) or parser detects Connection: close.
+// Executes shutdown(SHUT_WR) to start the TCP Half-Close process.
+void execute_half_close(int client_fd);
+
+// 5. Hard removes the socket from the pollfd array, closes the fd, and frees memory.
+void close_and_cleanup_connection(int client_fd);
+
+// 6. Writes data to the socket. Must handle EAGAIN/EWOULDBLOCK for non-blocking sockets.
+// Returns: Number of bytes actually written, which might be less than data.size().
+ssize_t send_data_to_socket(int client_fd, const std::vector<char>& data);
+
+// 1. Allocates the task queue and spawns 'num_threads' worker threads.
+ThreadPool* thread_pool_init(size_t num_threads);
+
+// 2. Pushes a fully parsed HttpRequest to the queue and signals a sleeping worker thread via Condition Variable.
+void thread_pool_enqueue_task(ThreadPool *pool, int client_fd, const HttpRequest& req);
+
+// 3. Safely joins all threads and frees memory during server shutdown.
+void thread_pool_destroy(ThreadPool *pool);
+// 1. The core state machine. Called every time recv() returns data. 
+// Searches for \r\n\r\n. Returns PARSE_AGAIN if incomplete, PARSE_COMPLETE if done, 
+// or PARSE_ERROR (e.g., if header size > 8KB).
+ParseState parser_consume_bytes(int client_fd, const char* buffer, size_t length);
+
+// 2. Extracts Method, Path, and Version. Returns false if syntax is invalid.
+bool parse_request_line(const std::string& line, HttpRequest* req);
+
+// 3. Splits Key: Value, trims whitespace, converts Key to lowercase.
+bool parse_header_line(const std::string& line, HttpRequest* req);
+
+// 4. URL decodes the path (e.g., "%20" -> " ").
+std::string decode_uri(const std::string& encoded_path);
+
+// 5. Enforces RFC 9112 limits. Fails if Host header is missing or HTTP version is wrong.
+bool validate_headers(const HttpRequest* req);
+
+// 6. Retrieves the fully constructed object once parser_consume_bytes returns PARSE_COMPLETE.
+HttpRequest parser_get_final_object(int client_fd);
+
+// 1. The entry point for the worker thread. Takes the request, checks the method, 
+// and routes it to handle_get, handle_post, etc.
+HttpResponse process_http_request(const HttpRequest& req);
+
+// 2. Virtual Hosting: Uses the "Host" header to determine which physical root directory to use.
+std::string resolve_document_root(const std::string& host_header_value);
+
+// 3. Security: Resolves the path and explicitly rejects paths containing "../". 
+// Returns false if a path traversal attack is detected.
+bool sanitize_file_path(const std::string& doc_root, const std::string& req_path, std::string* safe_path);
+
+// 4. Inspects file extensions (.html, .css, .jpg) and returns the correct HTTP Content-Type string.
+std::string get_mime_type(const std::string& file_path);
+
+// 5. Opens the file, calculates size for Content-Length, and reads bytes into the Response body.
+HttpResponse handle_get_method(const std::string& safe_path);
+
+// 6. Generates pre-formatted error responses (e.g., 400 Bad Request, 404 Not Found, 431 Header Too Large).
+HttpResponse generate_error_response(int status_code);
+// 1. Converts the status code integer (e.g., 200) into the HTTP phrase (e.g., "OK").
+std::string get_status_phrase(int status_code);
+
+// 2. Takes the HttpResponse object, concatenates the Status Line, Headers, \r\n\r\n, 
+// and appends the binary body payload. Returns the final buffer ready for send().
+std::vector<char> serialize_response(const HttpResponse& res);
+// 1. Parses the external .conf file to extract Port, Threads, Roots, and Timeouts.
+ServerConfig load_configuration(const std::string& conf_path);
+
+// 2. Thread-safe logger. Locks a mutex, appends the string to access.log, and unlocks.
+void log_transaction(const std::string& ip, const std::string& method, const std::string& uri, int status);
