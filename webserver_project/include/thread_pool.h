@@ -1,5 +1,26 @@
+/**How to use;
+ *  -make a variable of type thread_pool_t 
+ *  -use function thread_pool_init() to init the pool
+ *  -use function add_work() and pass it the thread pool 
+ *   and the cleint_sockfd to open the connetion with 
+ *   another thread from the pool
+ *  -when finished call thread_pool_destroy()
+ * 
+ * 
+ * Example: 
+ *  thread_pool_t pool;
+ *  thread_pool_init(&pool, 20, THREAD_POOL_SIZE_STATIC, "pool1");
+ *  add_work(&pool, fd1);
+ *  add_work(&pool, fd2);
+ *  thread_pool_destroy(&pool, THREAD_POOL_DESTROY_SOFT);
+ */
+
 #ifndef THREAD_POOL_H
 #define THREAD_POOL_H
+
+#include <pthread.h>
+#include <semaphore.h>
+#include "fifo_queue.h"
 
 #define INVALID_INPUT               1
 #define ERROR_INITIALIZING_QUEUE    2

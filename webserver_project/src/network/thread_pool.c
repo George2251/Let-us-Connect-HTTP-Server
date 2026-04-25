@@ -1,10 +1,7 @@
 #include <stdlib.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include "../../include/fifo_queue.h"
 #include "../../include/thread_pool.h"
 
 int thread_pool_init(thread_pool_t *thrd_pl, int max_thread_num, int size_option, const char *pool_name)
