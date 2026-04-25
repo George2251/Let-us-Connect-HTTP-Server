@@ -50,7 +50,7 @@ int pop_first(fifo_queue_t* queue, int* sockfd)
     if((queue->size == 0) || (queue->first == NULL)) return EMPTY_QUEUE;
 
     node_t* oldNode = queue->first;
-    sockfd = oldNode->sockfd;
+    *sockfd = oldNode->sockfd;
     queue->first = oldNode->prev;
 
     free(oldNode);

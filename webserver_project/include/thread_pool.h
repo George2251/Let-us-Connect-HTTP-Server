@@ -10,6 +10,10 @@
 
 #define INITIAL_POOL_SIZE           10
 
+
+#define THREAD_POOL_DESTROY_SOFT    0
+#define THREAD_POOL_DESTROY_HARD    1
+
 typedef enum{
     FREE,
     BUSY,
@@ -24,7 +28,7 @@ typedef struct{
     int busy_threads_num;
     const char* pool_name;
     int size_option;
-    thread_state* threads_states;
+    thread_state** threads_states;
     pthread_t* tids;
     fifo_queue_t* queue;
     pthread_mutex_t* pool_lock;
@@ -48,17 +52,43 @@ typedef struct{
  *              INITIAL_POOL_SIZE and the sizes changes based on needs
  * @param pool_name a null terminated character string of the pool name (used to initialize 
  *                  unique semaphores)
- * @return 0 if everything is okay or,
+ * @return 0: everything is okay or,
  *         INVALID_INPUT: if any of the inputs have invalid value
  *         ERROR_INITIALIZING_QUEUE: if the queue initialization fails
  *         ERRNO_ERROR: check errno for the error
  */
 int thread_pool_init(thread_pool_t* thrd_pl, int max_thread_num, int size_option, const char* pool_name);
 
+/**
+ * @brief add work to the thread pool and wake a thread to do the work
+ * @param thrd_pl is the pool which have the add work
+ * @param client_sockfd is the sockfd of the the client connection
+ * @return 0: everything is okay
+ *         INVALID_INPUT: if @p thrd_pl have invalid value
+ * @details if the thrd_pl->size_option is THREAD_POOL_SIZE_DYNAMIC
+ *          then the size of the pool is check and a resize is done
+ *          if nessecary
+ */
 int add_work(thread_pool_t* thrd_pl, int client_sockfd);
 
+/**
+ * @brief the function passed to pthread_create() which is the 
+ *        task of the thread
+ * @param arg carries any arguments to the function
+ * @return nothing
+ */
 void* thread_task(void* arg);
 
+/**
+ * @brief destroy the pool and free the resources
+ * @param thrd_pl is the pool to be freed
+ * @param option can be:
+ *              THREAD_POOL_DESTROY_SOFT: wait for every thread to complete its work
+ *              THREAD_POOL_DESTROY_HARD: every thread exits at the current or next
+ *                                        cancellation point
+ * @return 0: everthing is okay
+ *         INVALID_INPUT: if either @p thrd_pl or @p option have invalid value
+ */
 int thread_pool_destroy(thread_pool_t* thrd_pl, int option);
 
 #endif
