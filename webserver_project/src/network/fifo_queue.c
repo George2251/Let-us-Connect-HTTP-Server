@@ -4,10 +4,6 @@
 
 int fifo_queue_init(fifo_queue_t* queue)
 {
-    if(queue == NULL) return INVALID_INPUT;
-
-    queue = (fifo_queue_t*)malloc(sizeof(fifo_queue_t));
-
     queue->size=0;
     queue->first=NULL;
     queue->last=NULL;
@@ -66,18 +62,6 @@ int pop_first(fifo_queue_t* queue, int* sockfd)
     {
         queue->first->next = NULL;
     }
-
-    return 0;
-}
-
-
-int fifo_queue_destroy(fifo_queue_t* queue)
-{
-    if(queue == NULL) return INVALID_INPUT;
-
-    if(queue->size != 0) return NOT_EMPTY_QUEUE;
-
-    free(queue);
 
     return 0;
 }

@@ -49,11 +49,11 @@ typedef struct{
     int busy_threads_num;
     const char* pool_name;
     int size_option;
-    thread_state** threads_states;
-    pthread_t* tids;
-    fifo_queue_t* queue;
     pthread_mutex_t* pool_lock;
     sem_t* pool_sem;
+    thread_state** threads_states;
+    pthread_t* tids;
+    fifo_queue_t queue;
 }thread_pool_t;
 
 typedef struct{

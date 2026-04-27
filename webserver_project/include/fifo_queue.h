@@ -7,11 +7,11 @@
 #define NOT_EMPTY_QUEUE     3
 
 
-typedef struct
+typedef struct node_t
 {
     int sockfd;
-    node_t* next;
-    node_t* prev;
+    struct node_t* next;
+    struct node_t* prev;
 }node_t;
 
 
@@ -27,7 +27,6 @@ typedef struct
  * @brief Initiates a fifo queue to be used by the threads
  * @param queue will be assigned the address of the initialized fifo_queue_t
  * @return 0: everything is okay,
- *         INVALID_INPUT: invalid value for @p queue
  */
 int fifo_queue_init(fifo_queue_t* queue);
 
@@ -52,13 +51,6 @@ int push_last(fifo_queue_t* queue, int sockfd);
  */
 int pop_first(fifo_queue_t* queue, int* sockfd);
 
-/**
- * @brief destroys the queue
- * @param queue will be destroyed/freed
- * @return 0: everything is okay
- *         INVALID_INPUT: invalid value for @p queue
- *         NOT_EMPTY_QUEUE: the queue isn't empty
- */
-int fifo_queue_destroy(fifo_queue_t* queue);
+
 
 #endif
