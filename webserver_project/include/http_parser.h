@@ -1,32 +1,22 @@
-// HTTPRequest.h
-//
-// weblibc
-//
-
-
 #ifndef HTTPRequest_h
 #define HTTPRequest_h
 
-enum HTTPMethods
-{
-    GET,
-    POST,
-    PUT,
-    HEAD,
-    PATCH,
-    DELETE,
-    CONNECT,
-    OPTIONS,
-    TRACE
-};
+#include "../../DataStructures/Dictionary/Dictionary.h"
+
+
+// MARK: DATA TYPES
 
 struct HTTPRequest
 {
-    int Method;
-    char *URI;
-    float HTTPVersion;
+    struct Dictionary request_line;
+    struct Dictionary header_fields;
+    struct Dictionary body;
 };
 
-struct HTTPRequest http_request_constructor(char *request_string, int buffer_length);
+
+// MARK: CONSTRUCTORS
+
+struct HTTPRequest http_request_constructor(char *request_string);
+void http_request_destructor(struct HTTPRequest *request);
 
 #endif /* HTTPRequest_h */
