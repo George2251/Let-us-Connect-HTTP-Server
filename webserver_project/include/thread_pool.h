@@ -27,7 +27,7 @@
 #define ERRNO_ERROR                 3
 
 #define THREAD_POOL_SIZE_STATIC     0
-#define THREAD_POOL_SIZE_DYNAMIC    1
+#define THREAD_POOL_SIZE_DYNAMIC    1 //(NOT implemented yet)
 
 #define INITIAL_POOL_SIZE           10
 
@@ -98,7 +98,7 @@ int add_work(thread_pool_t* thrd_pl, int client_sockfd);
  * @param arg carries any arguments to the function
  * @return nothing
  */
-void* thread_task(void* arg);
+void* _thread_task(void* arg);
 
 /**
  * @brief destroy the pool and free the resources
