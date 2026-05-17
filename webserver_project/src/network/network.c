@@ -1,21 +1,21 @@
 #include "../../include/network.h"
-#include "../../include/http_parser.h"
+#include "../../include/http_parser.h" // For struct Dictionary definition (if needed by ClientTask)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>       
-#include <fcntl.h>        
-#include <signal.h>       
+#include <unistd.h>       // For close()
+#include <fcntl.h>        // For fcntl(), F_GETFL, F_SETFL, O_NONBLOCK
+#include <signal.h>       // For signal(), SIGPIPE, SIG_IGN
 #include <sys/socket.h>
-#include <sys/select.h>   
-#include <sys/sendfile.h> 
-#include <arpa/inet.h>
+#include <sys/select.h>   // For select(), fd_set
+#include <sys/sendfile.h> // For zero-copy send_file()
+#include <arpa/inet.h>    // For inet_ntoa, htons, htonl
 
-#define MAX_CONNS 256
-static struct ClientConnection client_conns[MAX_CONNS];
-
-static pthread_mutex_t conns_mutex = PTHREAD_MUTEX_INITIALIZER;
+/* =========================================================
+ * 1. Core Networking & Server Lifecycle (Main Thread)
+ * ========================================================= */
 
 int network_init(int port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -57,11 +57,6 @@ int network_init(int port) {
         return -1;
     }
 
-    for (int i = 0; i < MAX_CONNS; i++) {// Initialize connection tracking array
-        client_conns[i].is_active = 0;
-        client_conns[i].is_busy = 0;
-    }
-
     printf("Server successfully initialized and listening on port %d\n", port);
     return server_fd;
 }
@@ -69,116 +64,57 @@ int network_init(int port) {
 // MODIFIED: Now takes the 'routes' dictionary to pass down to the workers
 void network_run_server(int server_fd, thread_pool_t* pl, struct Dictionary* routes) {
     fd_set read_fds;
-    printf("Entering main server loop...\n");
+    int max_fd = server_fd;
 
+    printf("Entering main server loop...\n");
     while (1) {
         FD_ZERO(&read_fds);
         FD_SET(server_fd, &read_fds);
-        int max_fd = server_fd;
 
-       // POSITIVE 1: Keep tracking active sockets to monitor for new pipelines or clean timeouts
-        pthread_mutex_lock(&conns_mutex);
-        for (int i = 0; i < MAX_CONNS; i++) {
-            if (client_conns[i].is_active && !client_conns[i].is_busy) {
-                FD_SET(client_conns[i].fd, &read_fds);
-                if (client_conns[i].fd > max_fd) max_fd = client_conns[i].fd;
-            }
-        }
-        pthread_mutex_unlock(&conns_mutex);
-
-        struct timeval tv = {1, 0}; // Check timeouts every second
-        int activity = select(max_fd + 1, &read_fds, NULL, NULL, &tv);
+        int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+        
         if (activity < 0 && errno != EINTR) {
             perror("select error");
             break;
         }
 
-        // POSITIVE 2: Loop & Drain all pending connections from backlogs instantly
         if (FD_ISSET(server_fd, &read_fds)) {
             struct sockaddr_in client_addr;
             socklen_t client_len = sizeof(client_addr);
             int client_fd;
 
+            // Loop to drain all pending connections (since socket is non-blocking)
             while ((client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len)) != -1) {
+                
                 printf("New connection accepted from %s:%d (fd: %d)\n",
                        inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), client_fd);
 
-                // Initialize client socket as non-blocking immediately
+                // Make the client socket non-blocking
                 make_nonblocking(client_fd);
 
-                pthread_mutex_lock(&conns_mutex);
-                int slot_found = -1;
-                for (int i = 0; i < MAX_CONNS; i++) {
-                    if (!client_conns[i].is_active) {
-                        client_conns[i].fd = client_fd;
-                        client_conns[i].last_activity = time(NULL);
-                        client_conns[i].is_active = 1;
-                        client_conns[i].is_busy = 1; // Mark busy *immediately* because we handoff right now
-                        slot_found = i;
-                        break;
-                    }
-                }
-                pthread_mutex_unlock(&conns_mutex);
-
-                if (slot_found == -1) {
-                    fprintf(stderr, "Server full (MAX_CONNS reached). Rejecting fd %d\n", client_fd);
+                // MODIFIED: Create the ClientTask struct to bundle the socket and the routes
+                struct ClientTask *new_task = malloc(sizeof(struct ClientTask));
+                if (!new_task) {
+                    perror("Failed to allocate memory for new client task");
                     close(client_fd);
                     continue;
                 }
+                new_task->client_fd = client_fd;
+                new_task->routes = routes;
 
-                struct ClientTask* task = malloc(sizeof(struct ClientTask));
-                if (!task) {
-                    perror("Failed to allocate worker task context");
+                // DELEGATE: Pass the task struct to the thread pool
+                if (add_work(pl, new_task) != 0) {
+                    fprintf(stderr, "Thread pool queue full. Dropping client %d\n", client_fd);
                     close(client_fd);
-                    pthread_mutex_lock(&conns_mutex);
-                    client_conns[slot_found].is_active = 0;
-                    pthread_mutex_unlock(&conns_mutex);
-                    continue;
-                }
-
-                task->client_fd = client_fd;
-                task->routes = routes;
-                task->conn = &client_conns[slot_found];
-
-                // POSITIVE 3: Immediately offload work context safely to the pool 
-                if (add_work(pl, task) != 0) {
-                    fprintf(stderr, "Worker queue full. Dropping client %d\n", client_fd);
-                    close(client_fd);
-                    pthread_mutex_lock(&conns_mutex);
-                    client_conns[slot_found].is_active = 0;
-                    pthread_mutex_unlock(&conns_mutex);
-                    free(task);
+                    free(new_task); // Clean up memory if queue is full
                 }
             }
 
+            // After draining, accept returns -1 and sets errno to EAGAIN/EWOULDBLOCK
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                perror("Accept anomaly occurred");
+                perror("Accept failed");
             }
         }
-        // Handle sequential incoming pipeline requests on ready data channels
-        pthread_mutex_lock(&conns_mutex);
-        for (int i = 0; i < MAX_CONNS; i++) {
-            if (client_conns[i].is_active && !client_conns[i].is_busy && FD_ISSET(client_conns[i].fd, &read_fds)) {
-                client_conns[i].is_busy = 1; // Thread safety protection blocker
-                
-                struct ClientTask* task = malloc(sizeof(struct ClientTask));
-                if (!task) {
-                    close(client_conns[i].fd);
-                    client_conns[i].is_active = 0;
-                    continue;
-                }
-                task->client_fd = client_conns[i].fd;
-                task->routes = routes;
-                task->conn = &client_conns[i];
-
-                if (add_work(pl, task) != 0) {
-                    close(client_conns[i].fd);
-                    client_conns[i].is_active = 0;
-                    free(task);
-                }
-            }
-        }
-        pthread_mutex_unlock(&conns_mutex);
         check_keepalive_timeouts();
     }
 }
@@ -188,6 +124,9 @@ void network_shutdown(int server_fd) {
     close(server_fd);
 }
 
+/* =========================================================
+ * 2. Response Utilities (Used by Worker Threads)
+ * ========================================================= */
 
 int send_all(int fd, const char* buf, int len) {
     int total = 0;        // How many bytes we've sent
@@ -248,6 +187,7 @@ int send_response_head(int fd, const char* status, const char* text, const char*
     return send_all(fd, header_buffer, len);
 }
 
+// RESTORED: send_error was missing from your snippet
 void send_error(int fd, int code) {
     char body[512];
     char status_str[10];
@@ -277,6 +217,7 @@ void send_not_modified(int fd, const char* last_modified, int ka) {
     send_response_head(fd, "304", "Not Modified", "text/plain", 0, extra_headers, ka);
 }
 
+// RESTORED: send_created was missing from your snippet
 void send_created(int fd, const char* location, int ka) {
     char extra_headers[256];
     snprintf(extra_headers, sizeof(extra_headers), "Location: %s\r\n", location);
@@ -286,6 +227,9 @@ void send_created(int fd, const char* location, int ka) {
     send_all(fd, body, strlen(body));
 }
 
+/* =========================================================
+ * 3. Internal Helpers & OS Assurances
+ * ========================================================= */
 
 int make_nonblocking(int sockfd) {
     int flags = fcntl(sockfd, F_GETFL, 0);
@@ -302,23 +246,13 @@ int make_nonblocking(int sockfd) {
     return 0;
 }
 
+// RESTORED: Important for preventing server crashes on broken pipes
 void setup_signals(void) {
     // Ignore SIGPIPE so the server doesn't crash if a client closes connection during send()
     signal(SIGPIPE, SIG_IGN);
 }
+
 void check_keepalive_timeouts(void) {
-    time_t now = time(NULL);
-    
-    pthread_mutex_lock(&conns_mutex); // Protect with your new mutex!
-    for (int i = 0; i < MAX_CONNS; i++) {
-        // If the connection is active but not currently being processed by a worker thread
-        if (client_conns[i].is_active && !client_conns[i].is_busy) {
-            // Check if it has been idle for 10 seconds or more
-            if (now - client_conns[i].last_activity >= 10) { 
-                close(client_conns[i].fd);
-                client_conns[i].is_active = 0;
-            }
-        }
-    }
-    pthread_mutex_unlock(&conns_mutex);
+    // Background sweep logic for keeping track of active connections
+    // Currently a placeholder to be filled out if Keep-Alive state tracking is implemented.
 }
