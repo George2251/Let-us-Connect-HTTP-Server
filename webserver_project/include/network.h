@@ -8,6 +8,12 @@
 #include <fcntl.h>
 #include <signal.h>
 
+// Define the task structure that gets passed to the worker threads
+struct ClientTask {
+    int client_fd;
+    struct Dictionary* routes; 
+};
+
 // Include the thread pool header provided by the Thread Pool team
 #include "thread_pool.h"
 
