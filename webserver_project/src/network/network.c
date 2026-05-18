@@ -90,15 +90,16 @@ void network_run_server(int server_fd, thread_pool_t* pl, struct Dictionary* rou
                        inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), client_fd);
 
                 // Make the client socket non-blocking
-                make_nonblocking(client_fd);
+                //make_nonblocking(client_fd); resulted in race condition where worker thread tries to read before this is set, causing EAGAIN errors. Will set in worker thread instead.
 
-                // MODIFIED: Create the ClientTask struct to bundle the socket and the routes
+                // MODIFIED: Create the ClientTask struct...
                 struct ClientTask *new_task = malloc(sizeof(struct ClientTask));
                 if (!new_task) {
                     perror("Failed to allocate memory for new client task");
                     close(client_fd);
                     continue;
                 }
+                
                 new_task->client_fd = client_fd;
                 new_task->routes = routes;
 
