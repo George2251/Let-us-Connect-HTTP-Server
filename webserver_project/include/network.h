@@ -8,11 +8,24 @@
 #include <fcntl.h>
 #include <signal.h>
 
+#include "http_parser.h"
+struct Dictionary; // Keep this one as a forward declaration
+
+// Define what a route handler function looks like
+typedef void (*route_handler_t)(int client_fd, struct HTTPRequest* req);//defines what a route handler function looks like
+
+// Define the task structure that gets passed to the worker threads
+struct ClientTask {
+    int client_fd;
+    struct Dictionary* routes; 
+};
+
 // Include the thread pool header provided by the Thread Pool team
 #include "thread_pool.h"
 
+
 int network_init(int port); // port: listen port, returns server socket fd or -1 on error - implemented
-void network_run_server(int server_fd, thread_pool_t* pl); // server_fd: listening socket, pl: thread pool - implemented
+void network_run_server(int server_fd, thread_pool_t* pl, struct Dictionary* routes); // server_fd: listening socket, pl: thread pool, routes: route handlers - implemented
 void network_shutdown(int server_fd); // server_fd: socket to close - implemented
 
 int send_all(int fd, const char* buf, int len); // fd: socket, buf/len: data to send, returns 0 or -1 - implemented
