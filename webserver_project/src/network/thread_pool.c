@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-//for testing
+// for testing
 #include <stdio.h>
 #include <string.h>
 
@@ -109,12 +109,14 @@ void *_thread_task(void *args)
         // wait here untill a work is available
         sem_wait(thrd_pl->pool_sem);
 
-        
-
         // lock the thread pool so no race conditions happen
         pthread_mutex_lock(thrd_pl->pool_lock);
 
-        int sockfd;
+        // this struct will carry the client socket and the routes dictionary,
+        // it is allocated in network.c when a new client connects and is added
+        // to the queue as work for the thread pool, here we pop it from the queue
+        // and use its data to handle the request
+        struct ClientTask *task = NULL;
 
         // check if the main thread demands that this thread
         // to be closed
@@ -128,7 +130,7 @@ void *_thread_task(void *args)
         { // if there is work to do
 
             // get the work and edit the thread pool work-related data members
-            pop_first(&thrd_pl->queue, &sockfd);
+            pop_first(&thrd_pl->queue, &task);
             thrd_pl->available_work--;
             thrd_pl->busy_threads_num++;
             *state = BUSY;
@@ -142,15 +144,53 @@ void *_thread_task(void *args)
 
         // do the actuall work here
         //*******************************************************************/
+        if (task != NULL)
+        {
+            char buffer[9182] = {0}; // buffer to hold the incoming HTTP request
+            // Read from the socket. Using MSG_NOSIGNAL prevents crashing if the client disconnects early.
+            ssize_t bytes_read = recv(task->client_fd, buffer, sizeof(buffer) - 1, MSG_NOSIGNAL);
+            if (bytes_read > 0)
+            {
+                // 1. Construct the HTTP request dictionary from the raw text
+                struct HTTPRequest req = http_request_constructor(buffer);
 
+                // 2. Extract the requested URI
+                char *uri = (char *)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
+
+                // FIX: Look up a pointer to the handler, not the handler itself
+                route_handler_t *handler_ptr = NULL;
+
+                // 3. Search the routes dictionary
+                if (uri != NULL && task->routes != NULL)
+                {
+                    handler_ptr = (route_handler_t *)task->routes->search(task->routes, uri, strlen(uri) + 1);
+                }
+
+                // 4. If a route matches, dereference and execute. Otherwise, send a 404.
+                if (handler_ptr != NULL)
+                {
+                    (*handler_ptr)(task->client_fd, &req);
+                }
+                else
+                {
+                    send_error(task->client_fd, 404);
+                }
+
+                // 5. Deallocate the dictionaries inside the request struct
+                http_request_destructor(&req);
+            }
+            // 6. Close the socket when finished
+            close(task->client_fd);
+
+            // 7. Free the memory for the task that was allocated back in network.c
+            free(task);
+        }
         //*******************************************************************/
         // end of work
-
 
         // lock the thread pool again to reflect that this thread
         // is no longer busy doing work
         pthread_mutex_lock(thrd_pl->pool_lock);
-
 
         // check if the main thread demands that this thread
         // to be closed, the reason that this is repeated that the state
@@ -170,7 +210,7 @@ void *_thread_task(void *args)
     pthread_exit(0);
 }
 
-int add_work(thread_pool_t *thrd_pl, int client_sockfd)
+int add_work(thread_pool_t *thrd_pl, struct ClientTask *task)
 {
     // check for the input
     if (thrd_pl == NULL)
@@ -181,7 +221,7 @@ int add_work(thread_pool_t *thrd_pl, int client_sockfd)
     { // size is static, just add the work
         pthread_mutex_lock(thrd_pl->pool_lock);
 
-        push_last(&thrd_pl->queue, client_sockfd);
+        push_last(&thrd_pl->queue, task);
         thrd_pl->available_work++;
         sem_post(thrd_pl->pool_sem);
 
@@ -198,18 +238,19 @@ int thread_pool_destroy(thread_pool_t *thrd_pl, int option)
 {
 
     // check for inputs
-    if ((thrd_pl == NULL) || ((option != THREAD_POOL_DESTROY_SOFT) && 
-        (option != THREAD_POOL_DESTROY_DRAIN_AND_DROP) && (option != THREAD_POOL_DESTROY_HARD)))
+    if ((thrd_pl == NULL) || ((option != THREAD_POOL_DESTROY_SOFT) &&
+                              (option != THREAD_POOL_DESTROY_DRAIN_AND_DROP) && (option != THREAD_POOL_DESTROY_HARD)))
         return INVALID_INPUT;
 
     if ((option == THREAD_POOL_DESTROY_SOFT) || (option == THREAD_POOL_DESTROY_DRAIN_AND_DROP))
     { // wait till every thread has finished its work
 
-        //wait untill all the queued work is comleted
-        if(option == THREAD_POOL_DESTROY_SOFT)
+        // wait untill all the queued work is comleted
+        if (option == THREAD_POOL_DESTROY_SOFT)
         {
-            while(thrd_pl->available_work > 0)
-            {}
+            while (thrd_pl->available_work > 0)
+            {
+            }
         }
 
         // tell every thread that it is terminated and should exit
@@ -225,7 +266,6 @@ int thread_pool_destroy(thread_pool_t *thrd_pl, int option)
         {
             sem_post(thrd_pl->pool_sem);
         }
-
     }
     else
     { // kill every thread immediately

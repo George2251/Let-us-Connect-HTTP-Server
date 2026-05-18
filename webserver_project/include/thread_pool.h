@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include "fifo_queue.h"
+#include "network.h"
 
 #define INVALID_INPUT               1
 #define ERROR_INITIALIZING_QUEUE    2
@@ -84,14 +85,14 @@ int thread_pool_init(thread_pool_t* thrd_pl, int max_thread_num, int size_option
 /**
  * @brief add work to the thread pool and wake a thread to do the work
  * @param thrd_pl is the pool which have the add work
- * @param client_sockfd is the sockfd of the the client connection
+ * @param task is the task of the the client connection
  * @return 0: everything is okay
  *         INVALID_INPUT: if @p thrd_pl have invalid value
  * @details if the thrd_pl->size_option is THREAD_POOL_SIZE_DYNAMIC
  *          then the size of the pool is check and a resize is done
  *          if nessecary
  */
-int add_work(thread_pool_t* thrd_pl, int client_sockfd);
+int add_work(thread_pool_t* thrd_pl, struct ClientTask* task);
 
 /**
  * @brief the function passed to pthread_create() which is the 

@@ -12,12 +12,12 @@ int fifo_queue_init(fifo_queue_t* queue)
 }
 
 
-int push_last(fifo_queue_t* queue, int sockfd)
+int push_last(fifo_queue_t* queue, struct ClientTask* task)
 {
     if(queue == NULL) return INVALID_INPUT;
 
     node_t* newNode = (node_t*)malloc(sizeof(node_t));
-    newNode->sockfd=sockfd;
+    newNode->task=task;
     newNode->prev = NULL;
 
     if(queue->size == 0)
@@ -39,14 +39,14 @@ int push_last(fifo_queue_t* queue, int sockfd)
 }
 
 
-int pop_first(fifo_queue_t* queue, int* sockfd)
+int pop_first(fifo_queue_t* queue, struct ClientTask** task)
 {
-    if((queue == NULL) || (sockfd == NULL)) return INVALID_INPUT; 
+    if((queue == NULL) || (task == NULL)) return INVALID_INPUT; 
 
     if((queue->size == 0) || (queue->first == NULL)) return EMPTY_QUEUE;
 
     node_t* oldNode = queue->first;
-    *sockfd = oldNode->sockfd;
+    *task = oldNode->task;
     queue->first = oldNode->prev;
 
     free(oldNode);
