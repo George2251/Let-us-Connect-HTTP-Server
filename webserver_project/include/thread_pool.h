@@ -32,8 +32,9 @@
 #define INITIAL_POOL_SIZE           10
 
 
-#define THREAD_POOL_DESTROY_SOFT    0
-#define THREAD_POOL_DESTROY_HARD    1
+#define THREAD_POOL_DESTROY_SOFT                0
+#define THREAD_POOL_DESTROY_HARD                1
+#define THREAD_POOL_DESTROY_DRAIN_AND_DROP      2
 
 typedef enum{
     FREE,

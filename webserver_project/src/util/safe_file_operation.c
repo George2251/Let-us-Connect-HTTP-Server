@@ -1,12 +1,7 @@
-#define _GNU_SOURCE // pthread_rwlock_t is undefined without this macro
-
 #include <unistd.h>
-#include <pthread.h>
 #include <stdlib.h>
-#include <semaphore.h>
 #include <fcntl.h> //for O_CREAT flag
 #include <string.h>
-#include <sys/stat.h>
 #include <errno.h>
 
 #include "../../include/safe_file_operation.h"
@@ -21,7 +16,7 @@ int safe_files_operations_init(void)
     open_files = NULL;
 
     // initialize the semaphore that would be used in opening or closing files
-    if ((open_files_sem = sem_open("SAFE_FILE_OPERATION", O_CREAT, 0666, 0)) == SEM_FAILED)
+    if ((open_files_sem = sem_open("SAFE_FILE_OPERATION", O_CREAT, 0666, 1)) == SEM_FAILED)
     {
         return ERROR_INITIALIZING;
     }
@@ -29,10 +24,17 @@ int safe_files_operations_init(void)
     return 0;
 }
 
+void safe_files_operations_destroy(void)
+{
+    //close the semaphore
+    sem_close(open_files_sem);
+    sem_unlink("SAFE_FILE_OPERATION");
+}
+
 int safe_open(file_t *file, const char *pathname, int flags, mode_t mode, int file_type)
 {
     // check inputs
-    if ((pathname == NULL) || ((file_type != NORMAL_FILE) && (file_type != LOG_FILE)))
+    if ((file == NULL) || (pathname == NULL) || ((file_type != NORMAL_FILE) && (file_type != LOG_FILE)))
     {
         return INVALID_INPUT;
     }
@@ -45,8 +47,9 @@ int safe_open(file_t *file, const char *pathname, int flags, mode_t mode, int fi
     struct stat new_file;
 
     // get the stat of the new file
-    if ((return_val = stat(pathname, &new_file)) == -1)
+    if (stat(pathname, &new_file) == -1)
     {
+        return_val = errno;
         if (return_val == ENOENT)
         {
             existing_file = 0;
@@ -114,6 +117,8 @@ int _open_new_file(file_t *file, const char *pathname, int flags,
     int fd;
     if ((fd = open(pathname, flags, mode)) == -1)
     {
+        // release the lock
+        sem_post(open_files_sem);
         return ERROR_OPENING_FILE;
     }
 
@@ -128,12 +133,16 @@ int _open_new_file(file_t *file, const char *pathname, int flags,
     //get the stat of the new file
     if (fstat(fd, &new_open_file->file_stat) == -1)
     {
+        // release the lock
+        sem_post(open_files_sem);
         return ERROR_ACCESSING_NEW_FILE;
     }
 
     // initialize the read/write lock
     if (pthread_rwlock_init(&new_open_file->file_lock, NULL) != 0)
     {
+        // release the lock
+        sem_post(open_files_sem);
         return ERROR_CREATING_LOCK;
     }
 
@@ -163,6 +172,8 @@ int _open_existing_file(file_t *file, const char *pathname, int flags, mode_t mo
     {
         if ((return_val = _open_existing_normal_file(file, pathname, flags, mode, existing_file)) != 0)
         {
+            // release the lock
+            sem_post(open_files_sem);
             return return_val;
         }
     }
@@ -220,7 +231,7 @@ open_file *_does_exist(struct stat *new_file)
             return current;
         }
 
-        current->next;
+        current = current->next;
     }
 
     return NULL;
@@ -247,7 +258,7 @@ int safe_close(file_t *file)
         return return_val;
     }
 
-    sem_wait(open_files_sem);
+    sem_post(open_files_sem);
 
     return 0;
 }
@@ -317,11 +328,24 @@ ssize_t safe_write(file_t *file, const void *buf, size_t count)
         return INVALID_INPUT;
     }
 
-    pthread_rwlock_rwlock(&file->file_info->file_lock);
+    pthread_rwlock_wrlock(&file->file_info->file_lock);
 
     int return_val = write(file->file_fd, buf, count);
 
     pthread_rwlock_unlock(&file->file_info->file_lock);
 
     return return_val;
+}
+
+
+off_t safe_lseek(file_t* file, off_t offset, int whence)
+{
+    //if the file is a log file then just return the 
+    //current position of the pointer and don't move it
+    if(file->file_info->file_type == LOG_FILE)
+    {
+        return lseek(file->file_fd, 0, SEEK_CUR);
+    }
+
+    return lseek(file->file_fd, offset, whence);
 }

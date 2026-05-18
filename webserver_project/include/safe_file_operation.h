@@ -20,22 +20,32 @@ int count = safe_write(&new_file, buffer, buff_size);
 
 safe_close(&new_file);
 
+safe_files_operations_destroy()
+
 */
 
 
 #ifndef SAFE_FILE_OPERATION_H
 #define SAFE_FILE_OPERATION_H
 
-#define ERROR_INITIALIZING 1
-#define ERROR_ACCESSING_NEW_FILE 2
-#define INVALID_INPUT 3
-#define ERROR_INCOMPATIBLE_FILE_TYPE 4
-#define ERROR_OPENING_FILE 5
-#define ERROR_CREATING_LOCK 6
-#define ERROR_DESTROYING_LOCK 7
 
-#define NORMAL_FILE 0
-#define LOG_FILE 1
+#include <pthread.h>
+#include <semaphore.h>
+#include <sys/stat.h>
+
+#define _GNU_SOURCE // pthread_rwlock_t is undefined without this macro
+
+
+#define INVALID_INPUT                       1
+#define ERROR_ACCESSING_NEW_FILE            2
+#define ERROR_INITIALIZING                  3
+#define ERROR_INCOMPATIBLE_FILE_TYPE        4
+#define ERROR_OPENING_FILE                  5
+#define ERROR_CREATING_LOCK                 6
+#define ERROR_DESTROYING_LOCK               7
+
+#define NORMAL_FILE                         0
+#define LOG_FILE                            1
 
 typedef struct open_file
 {
@@ -71,6 +81,12 @@ typedef struct file_t
  *         obtaining the semaphore, see @p errno
  */
 int safe_files_operations_init(void);
+
+/**
+ * @brief destroyies and releases the resources of the global 
+ *        data structures
+ */
+void safe_files_operations_destroy(void);
 
 /**
  * @brief safely open a file
@@ -128,6 +144,23 @@ ssize_t safe_read(file_t *file, void *buf, size_t count);
  *         the normal write() syscall
  */
 ssize_t safe_write(file_t *file, const void *buf, size_t count);
+
+/**
+ * @brief just a wrapper for lseek that abstracts the usage of file_t
+ *        and works as expected with normal files, however it won't 
+ *        work with log files
+ * @param file the file_t that is used to identify the open file
+ * @param offset the offset that will be used
+ * @param whence how will the offset be used to result in the new offset
+ * @return returns the same values as lseek
+ * @note if this function is called with a log file, it will only return
+ *       the current offset of the pointer from the beggining of the file
+ *       and the pointer won't be changed based on this called
+ *       The reason: the log file is a single shared open file so changing the 
+ *       pointer, would change it for all threads opening it
+ */
+off_t safe_lseek(file_t* file, off_t offset, int whence);
+
 
 
 //==========================================================================//
@@ -243,6 +276,6 @@ open_file *_does_exist(struct stat *new_file);
  * @return 0: everything is okay
  *         ERROR_DESTROYING_LOCK: failed to destroy the rwlock
  */
-inline int _check_and_delete_entry(open_file *file_entry);
+int _check_and_delete_entry(open_file *file_entry);
 
 #endif

@@ -1,20 +1,26 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
+
+//for testing
+#include <stdio.h>
+#include <string.h>
 
 #include "../../include/thread_pool.h"
+#include "../../include/safe_file_operation.h"
 
 int thread_pool_init(thread_pool_t *thrd_pl, int max_thread_num, int size_option, const char *pool_name)
 {
-    //check for invalid input
+    // check for invalid input
     if ((max_thread_num < 1) || (pool_name == NULL) || ((size_option != THREAD_POOL_SIZE_STATIC) && (size_option != THREAD_POOL_SIZE_DYNAMIC)))
         return INVALID_INPUT;
 
     thrd_pl->max_size = max_thread_num;
 
-    //check whether to choose the curr_size based on the size_option
-    //static size means that the size is constant
-    //dynamic size means that the size changes based on demand (NOT implemented yet)
+    // check whether to choose the curr_size based on the size_option
+    // static size means that the size is constant
+    // dynamic size means that the size changes based on demand (NOT implemented yet)
     if ((thrd_pl->size_option = size_option) == THREAD_POOL_SIZE_DYNAMIC)
     {
         thrd_pl->curr_size = (max_thread_num < INITIAL_POOL_SIZE) ? max_thread_num : INITIAL_POOL_SIZE;
@@ -24,40 +30,39 @@ int thread_pool_init(thread_pool_t *thrd_pl, int max_thread_num, int size_option
         thrd_pl->curr_size = max_thread_num;
     }
 
-    //set the task-related members to reset values
+    // set the task-related members to reset values
     thrd_pl->available_work = 0;
     thrd_pl->busy_threads_num = 0;
 
-    //the pool name is used for the semaphore
-    thrd_pl->pool_name = pool_name; 
+    // the pool name is used for the semaphore
+    thrd_pl->pool_name = pool_name;
 
-    //initialize the queue that would carry the tasks
+    // initialize the queue that would carry the tasks
     if (fifo_queue_init(&thrd_pl->queue) != 0)
     {
         return ERROR_INITIALIZING_QUEUE;
     }
 
-    //initialize the lock that would be used to protect the data structure
-    //from race conditions while editing it
+    // initialize the lock that would be used to protect the data structure
+    // from race conditions while editing it
     thrd_pl->pool_lock = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     if (pthread_mutex_init(thrd_pl->pool_lock, NULL) != 0)
     {
         return ERRNO_ERROR;
     }
 
-    //initialize the semaphore which will wake threads when ever ther is work
+    // initialize the semaphore which will wake threads when ever ther is work
     if ((thrd_pl->pool_sem = sem_open(thrd_pl->pool_name, O_CREAT, 0666, 0)) == SEM_FAILED)
     {
         pthread_mutex_destroy(thrd_pl->pool_lock);
         return ERRNO_ERROR;
     }
 
-
-    //initialize the thread info related arrays
+    // initialize the thread info related arrays
     thrd_pl->threads_states = (thread_state **)malloc(thrd_pl->curr_size * sizeof(thread_state *));
     thrd_pl->tids = (pthread_t *)malloc(thrd_pl->curr_size * sizeof(pthread_t));
 
-    //initialize the thread attributes
+    // initialize the thread attributes
     pthread_attr_t attr;
     pthread_attr_init(&attr);
 
@@ -65,14 +70,14 @@ int thread_pool_init(thread_pool_t *thrd_pl, int max_thread_num, int size_option
     thread_args *args = (thread_args *)malloc(sizeof(thread_args));
     args->thrd_pl = thrd_pl;
 
-    //this semaphore will be used only to initialize each thread
+    // this semaphore will be used only to initialize each thread
     sem_t *pool_init_sem = sem_open("INIT_SEM", O_CREAT, 0666, 0);
     args->init_sem = pool_init_sem; // just for initializing the pool
     for (int i = 0; i < thrd_pl->curr_size; i++)
     {
 
-        //give each thread a pointer to its state information so 
-        //the both the main thread and child thread can read and write the state
+        // give each thread a pointer to its state information so
+        // the both the main thread and child thread can read and write the state
         thrd_pl->threads_states[i] = (thread_state *)malloc(sizeof(thread_state));
         *(thrd_pl->threads_states[i]) = FREE;
         args->state = thrd_pl->threads_states[i];
@@ -83,7 +88,7 @@ int thread_pool_init(thread_pool_t *thrd_pl, int max_thread_num, int size_option
         sem_wait(pool_init_sem);
     }
 
-    //destroy those since they are only for initialization
+    // destroy those since they are only for initialization
     sem_unlink("INIT_SEM");
     free(args);
 
@@ -92,7 +97,7 @@ int thread_pool_init(thread_pool_t *thrd_pl, int max_thread_num, int size_option
 
 void *_thread_task(void *args)
 {
-    //give the thread pointers to its state and thread pool
+    // give the thread pointers to its state and thread pool
     thread_state *state = ((thread_args *)args)->state;
     thread_pool_t *thrd_pl = ((thread_args *)args)->thrd_pl;
 
@@ -101,25 +106,28 @@ void *_thread_task(void *args)
 
     while (1)
     {
-        //wait here untill a work is available
+        // wait here untill a work is available
         sem_wait(thrd_pl->pool_sem);
 
-        //check if the main thread demands that this thread 
-        //to be closed
-        if (*state == TERMINATED)
-        {
-            break;
-        }
+        
 
-        //lock the thread pool so no race conditions happen
+        // lock the thread pool so no race conditions happen
         pthread_mutex_lock(thrd_pl->pool_lock);
 
         int sockfd;
 
+        // check if the main thread demands that this thread
+        // to be closed
+        if (*state == TERMINATED)
+        {
+            pthread_mutex_unlock(thrd_pl->pool_lock);
+            break;
+        }
+
         if (thrd_pl->available_work > 0)
         { // if there is work to do
 
-            //get the work and edit the thread pool work-related data members
+            // get the work and edit the thread pool work-related data members
             pop_first(&thrd_pl->queue, &sockfd);
             thrd_pl->available_work--;
             thrd_pl->busy_threads_num++;
@@ -138,17 +146,20 @@ void *_thread_task(void *args)
         //*******************************************************************/
         // end of work
 
-        //check if the main thread demands that this thread 
-        //to be closed, the reason that this is repeated that the state
-        //would be written by the thread later
+
+        // lock the thread pool again to reflect that this thread
+        // is no longer busy doing work
+        pthread_mutex_lock(thrd_pl->pool_lock);
+
+
+        // check if the main thread demands that this thread
+        // to be closed, the reason that this is repeated that the state
+        // would be written by the thread later
         if (*state == TERMINATED)
         {
+            pthread_mutex_unlock(thrd_pl->pool_lock);
             break;
         }
-
-        //lock the thread pool again to reflect that this thread
-        //is no longer busy doing work
-        pthread_mutex_lock(thrd_pl->pool_lock);
 
         thrd_pl->busy_threads_num--;
         *state = FREE;
@@ -161,11 +172,11 @@ void *_thread_task(void *args)
 
 int add_work(thread_pool_t *thrd_pl, int client_sockfd)
 {
-    //check for the input
+    // check for the input
     if (thrd_pl == NULL)
         return INVALID_INPUT;
 
-    //choose how to add work based on the size_option
+    // choose how to add work based on the size_option
     if (thrd_pl->size_option == THREAD_POOL_SIZE_STATIC)
     { // size is static, just add the work
         pthread_mutex_lock(thrd_pl->pool_lock);
@@ -185,20 +196,36 @@ int add_work(thread_pool_t *thrd_pl, int client_sockfd)
 
 int thread_pool_destroy(thread_pool_t *thrd_pl, int option)
 {
-    //check for inputs
-    if ((thrd_pl == NULL) || ((option != THREAD_POOL_DESTROY_SOFT) && (option != THREAD_POOL_DESTROY_HARD)))
+
+    // check for inputs
+    if ((thrd_pl == NULL) || ((option != THREAD_POOL_DESTROY_SOFT) && 
+        (option != THREAD_POOL_DESTROY_DRAIN_AND_DROP) && (option != THREAD_POOL_DESTROY_HARD)))
         return INVALID_INPUT;
 
-    if (option == THREAD_POOL_DESTROY_SOFT)
+    if ((option == THREAD_POOL_DESTROY_SOFT) || (option == THREAD_POOL_DESTROY_DRAIN_AND_DROP))
     { // wait till every thread has finished its work
 
+        //wait untill all the queued work is comleted
+        if(option == THREAD_POOL_DESTROY_SOFT)
+        {
+            while(thrd_pl->available_work > 0)
+            {}
+        }
+
         // tell every thread that it is terminated and should exit
+        pthread_mutex_lock(thrd_pl->pool_lock);
         for (int i = 0; i < thrd_pl->curr_size; i++)
+        {
             *(thrd_pl->threads_states[i]) = TERMINATED;
+        }
+        pthread_mutex_unlock(thrd_pl->pool_lock);
 
         // signal for every thread, more signals isn't bad
         for (int i = 0; i < thrd_pl->curr_size; i++)
+        {
             sem_post(thrd_pl->pool_sem);
+        }
+
     }
     else
     { // kill every thread immediately
@@ -215,6 +242,7 @@ int thread_pool_destroy(thread_pool_t *thrd_pl, int option)
 
     // free resources
     sem_close(thrd_pl->pool_sem);
+    sem_unlink(thrd_pl->pool_name);
     pthread_mutex_destroy(thrd_pl->pool_lock);
     free(thrd_pl->pool_lock);
     free(thrd_pl->tids);
