@@ -24,17 +24,17 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest* req) {
     char* version = (char*)req->request_line.search(&req->request_line, "http_version", sizeof("http_version"));
 
     if (!method || !uri || !version) {
-        send_error(client_fd, 400);
+        send_error(client_fd, 400);// Bad Request
         return;
     }
 
     if (strcmp(version, "HTTP/1.1") != 0) {
-        send_error(client_fd, 505);
+        send_error(client_fd, 505); // HTTP Version Not Supported
         return;
     }
 
     if (strstr(uri, "../")) {
-        send_error(client_fd, 403);
+        send_error(client_fd, 403);// Forbidden
         return;
     }
 
@@ -48,7 +48,7 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest* req) {
         // FIX: Search lowercase key
         char* cl_str = (char*)req->header_fields.search(&req->header_fields, "content-length", sizeof("content-length"));
         if (!cl_str) {
-            send_error(client_fd, 411);
+            send_error(client_fd, 411);// Length Required
             return;
         }
 
@@ -77,19 +77,40 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest* req) {
 
     char local_path[512];
     snprintf(local_path, sizeof(local_path), "public%s", uri);
-    if (local_path[strlen(local_path) - 1] == '/') {
-        strncat(local_path, "index.html", sizeof(local_path) - strlen(local_path) - 1);
-    }
 
     struct stat st;
-    if (stat(local_path, &st) == -1 || S_ISDIR(st.st_mode)) {
-        send_error(client_fd, 404);
-        return;
+    
+    // 1. Try to find the exact file or directory first
+    if (stat(local_path, &st) == 0) {
+        
+        // 2. If it is a directory, automatically look for index.html inside it
+        if (S_ISDIR(st.st_mode)) {
+            if (local_path[strlen(local_path) - 1] != '/') {
+                strncat(local_path, "/", sizeof(local_path) - strlen(local_path) - 1);
+            }
+            strncat(local_path, "index.html", sizeof(local_path) - strlen(local_path) - 1);
+            
+            // Re-check if the index.html actually exists
+            if (stat(local_path, &st) == -1 || S_ISDIR(st.st_mode)) {
+                send_error(client_fd, 404); // Not Found
+                return;
+            }
+        }
+    } else {
+        // 3. The exact file wasn't found. Try appending ".html" to the path
+        // This allows extensionless URLs (e.g., "/about" -> "/about.html")
+        strncat(local_path, ".html", sizeof(local_path) - strlen(local_path) - 1);
+        
+        if (stat(local_path, &st) == -1 || S_ISDIR(st.st_mode)) {
+            send_error(client_fd, 404); // Not Found
+            return;
+        }
     }
 
+    // 4. File is found and confirmed to be a standard file. Open and send it!
     int file_fd = open(local_path, O_RDONLY);
     if (file_fd == -1) {
-        send_error(client_fd, 403);
+        send_error(client_fd, 403); // Forbidden
         return;
     }
 

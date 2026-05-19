@@ -1,0 +1,167 @@
+/* Base Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+body {
+    background-color: #0a0a0c;
+    color: #00ff66;
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* Futuristic background grid pattern */
+.cyber-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(0, 255, 102, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 102, 0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+    z-index: 1;
+}
+
+.container {
+    position: relative;
+    z-index: 2;
+    width: 90%;
+    max-width: 600px;
+    padding: 20px;
+}
+
+/* Header Text Styles */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.glitch {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #ff0055;
+    text-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
+    letter-spacing: 3px;
+}
+
+.status {
+    color: #00ffff;
+    font-size: 0.85rem;
+    margin-top: 8px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+/* Interactive Card Shape */
+.profile-card {
+    background: rgba(16, 16, 20, 0.9);
+    border: 2px solid #00ff66;
+    border-radius: 0px; /* Sharp corporate matrix edges */
+    padding: 40px;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 255, 102, 0.15);
+    overflow: hidden;
+}
+
+/* Moving scanner line animation effect */
+.scanner-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(to bottom, rgba(0,255,102,0), #00ff66);
+    animation: scan 4s linear infinite;
+}
+
+@keyframes scan {
+    0% { top: 0%; }
+    50% { top: 100%; }
+    100% { top: 0%; }
+}
+
+.badge {
+    position: absolute;
+    top: 0;
+    right: 20px;
+    background: #00ff66;
+    color: #000;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 4px 8px;
+}
+
+.profile-card h2 {
+    font-size: 1.6rem;
+    margin-bottom: 15px;
+    color: #ffffff;
+}
+
+.profile-card p {
+    color: #a0a5b5;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    margin-bottom: 30px;
+}
+
+/* Layout Blocks inside card */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 35px;
+}
+
+.stat-box {
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    padding: 10px;
+    text-align: center;
+    background: rgba(0, 255, 255, 0.02);
+}
+
+.stat-box .label {
+    display: block;
+    font-size: 0.7rem;
+    color: #00ffff;
+    margin-bottom: 5px;
+}
+
+.stat-box .value {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.stat-box .value.ready {
+    color: #00ff66;
+}
+
+/* Interactive matrix trigger button */
+.action-btn {
+    display: block;
+    text-align: center;
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #ff0055;
+    background: transparent;
+    color: #ff0055;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: #ff0055;
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
+    cursor: pointer;
+}
