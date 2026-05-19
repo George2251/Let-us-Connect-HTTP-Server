@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "../../include/thread_pool.h"
 #include "../../include/network.h"
@@ -146,49 +147,86 @@ void *_thread_task(void *args)
         // do the actuall work here
         //*******************************************************************/
         if (task != NULL) {
-            char buffer[8192] = {0}; // 8KB Cap compliance constraint
-            ssize_t bytes_read = recv(task->client_fd, buffer, sizeof(buffer) - 1, 0);
+            int client_fd = task->client_fd;
+            struct ClientConnection* conn = task->conn;
+            
+            // NON-BLOCKING READ
+            ssize_t bytes_read = recv(client_fd, conn->read_buffer + conn->read_length, 
+                                      sizeof(conn->read_buffer) - 1 - conn->read_length, 0);
 
             if (bytes_read > 0) {
-                struct HTTPRequest req = http_request_constructor(buffer);
-                char* connection_val = (char*)req.header_fields.search(&req.header_fields, "Connection", sizeof("Connection"));
-                int keep_alive = (connection_val && strcasecmp(connection_val, "keep-alive") == 0);
-
-                char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
-                route_handler_t *handler_ptr = NULL;
-
-                if (uri != NULL && task->routes != NULL) {
-                    handler_ptr = (route_handler_t*)task->routes->search(task->routes, uri, strlen(uri) + 1);
-                }
-
-                if (handler_ptr != NULL) {
-                    (*handler_ptr)(task->client_fd, &req);
-                } else {
-                    // If no explicit route dictionary entry exists, fall back to default filesystem handler
-                    
-                    // Make sure we cast to a POINTER to the handler (route_handler_t *)
-                    route_handler_t *fs_handler_ptr = (route_handler_t *)task->routes->search(task->routes, "*", sizeof("*"));
-                    
-                    if (fs_handler_ptr != NULL) {
-                        // FIX: Dereference the pointer to execute the function (*fs_handler_ptr)
-                        (*fs_handler_ptr)(task->client_fd, &req);
+                conn->read_length += bytes_read;
+                conn->read_buffer[conn->read_length] = '\0'; 
+                
+                int request_complete = 0;
+                char* headers_end = strstr(conn->read_buffer, "\r\n\r\n");
+                
+                if (headers_end) {
+                    // FIX: strcasestr completely ignores capitalization in the raw buffer
+                    char* cl_str = strcasestr(conn->read_buffer, "Content-Length:");
+                    if (cl_str) {
+                        int content_length = atoi(cl_str + 15); 
+                        int headers_length = (headers_end - conn->read_buffer) + 4; 
+                        if (conn->read_length >= headers_length + content_length) {
+                            request_complete = 1;
+                        }
                     } else {
-                        send_error(task->client_fd, 404);
+                        request_complete = 1; 
                     }
                 }
 
-                http_request_destructor(&req);
+                if (request_complete) {
+                    struct HTTPRequest req = http_request_constructor(conn->read_buffer);
+                    
+                    // FIX: Search for the guaranteed lowercase dictionary key
+                    char* connection_val = (char*)req.header_fields.search(&req.header_fields, "connection", sizeof("connection"));
+                    
+                    int keep_alive = 1; 
+                    if (connection_val && strcasecmp(connection_val, "close") == 0) keep_alive = 0; 
 
-                if (keep_alive && task->conn->is_active) {
-                    task->conn->last_activity = time(NULL);
-                    task->conn->is_busy = 0; // Hand back to main thread select loop
-                } else {
-                    close(task->client_fd);
-                    task->conn->is_active = 0;
+                    char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
+                    route_handler_t *handler_ptr = NULL;
+
+                    if (uri != NULL && task->routes != NULL) {
+                        handler_ptr = (route_handler_t*)task->routes->search(task->routes, uri, strlen(uri) + 1);
+                    }
+
+                    if (handler_ptr != NULL) {
+                        (*handler_ptr)(client_fd, &req);
+                    } else {
+                        route_handler_t *fs_handler_ptr = (route_handler_t *)task->routes->search(task->routes, "*", sizeof("*"));
+                        if (fs_handler_ptr != NULL) {
+                            (*fs_handler_ptr)(client_fd, &req);
+                        } else {
+                            send_error(client_fd, 404);
+                        }
+                    }
+
+                    http_request_destructor(&req);
+
+                    conn->read_length = 0;
+                    memset(conn->read_buffer, 0, sizeof(conn->read_buffer));
+
+                    if (keep_alive && conn->is_active) {
+                        conn->last_activity = time(NULL);
+                        conn->is_busy = 0; 
+                    } else {
+                        close(client_fd);
+                        conn->is_active = 0;
+                    }
+                } 
+                else {
+                    conn->last_activity = time(NULL);
+                    conn->is_busy = 0;
                 }
-            } else {
-                close(task->client_fd);
-                task->conn->is_active = 0;
+                
+            } 
+            else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                conn->is_busy = 0; 
+            } 
+            else {
+                close(client_fd);
+                conn->is_active = 0;
             }
             free(task);
         }

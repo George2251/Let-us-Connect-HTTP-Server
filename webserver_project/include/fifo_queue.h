@@ -6,7 +6,6 @@
 #define EMPTY_QUEUE         2
 #define NOT_EMPTY_QUEUE     3
 
-#include "network.h"
 
 typedef struct node_t
 {

@@ -18,6 +18,9 @@ struct ClientConnection {
     time_t last_activity;
     int is_busy;   // 1 if currently processing inside the thread pool
     int is_active; // 1 if slot contains a valid open connection
+
+    char read_buffer[8192];
+    int read_length;
 };
 
 typedef void (*route_handler_t)(int client_fd, struct HTTPRequest* req);

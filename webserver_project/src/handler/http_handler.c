@@ -33,31 +33,32 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest* req) {
         return;
     }
 
-    // Security Defense check: Deny path-traversal vulnerability attacks
     if (strstr(uri, "../")) {
         send_error(client_fd, 403);
         return;
     }
 
-    char* connection_val = (char*)req->header_fields.search(&req->header_fields, "Connection", sizeof("Connection"));
-    int keep_alive = (connection_val && strcasecmp(connection_val, "keep-alive") == 0);
+    // FIX: Search lowercase key and enforce HTTP/1.1 Keep-Alive defaults
+    char* connection_val = (char*)req->header_fields.search(&req->header_fields, "connection", sizeof("connection"));
+    int keep_alive = 1; // Default to TRUE
+    if (connection_val && strcasecmp(connection_val, "close") == 0) keep_alive = 0;
 
     // POST Method Execution Flow
     if (strcmp(method, "POST") == 0) {
-        char* cl_str = (char*)req->header_fields.search(&req->header_fields, "Content-Length", sizeof("Content-Length"));
+        // FIX: Search lowercase key
+        char* cl_str = (char*)req->header_fields.search(&req->header_fields, "content-length", sizeof("content-length"));
         if (!cl_str) {
-            send_error(client_fd, 411); // 411 Length Required enforcement
+            send_error(client_fd, 411);
             return;
         }
 
         char* body_data = (char*)req->body.search(&req->body, "data", sizeof("data"));
         if (!body_data) body_data = "";
 
-        // Task output specification requirements compliance processing
         printf("\n--- Received POST Payload data ---\n%s\n----------------------------------\n", body_data);
 
-        mkdir("www", 0777); 
-        int log_fd = open("www/post_data.txt", O_WRONLY | O_CREAT | O_APPEND, 0666);
+        mkdir("public", 0777); 
+        int log_fd = open("public/post_data.txt", O_WRONLY | O_CREAT | O_APPEND, 0666);
         if (log_fd != -1) {
             write(log_fd, body_data, strlen(body_data));
             write(log_fd, "\n", 1);
@@ -74,11 +75,8 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest* req) {
         return;
     }
 
-    // Build systemic file path using targeted 'www' document root directory
     char local_path[512];
-    snprintf(local_path, sizeof(local_path), "www%s", uri);
-    
-    // Treat folders by serving home page default fallback automatically
+    snprintf(local_path, sizeof(local_path), "public%s", uri);
     if (local_path[strlen(local_path) - 1] == '/') {
         strncat(local_path, "index.html", sizeof(local_path) - strlen(local_path) - 1);
     }

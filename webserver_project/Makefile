@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -Wextra -g -D_GNU_SOURCE
 INCLUDES = -I./include -I../DataStructures/Dictionary -I../DataStructures/Lists -I../DataStructures/Common -I../DataStructures/Trees
 
 # Network and Thread Pool source files (Removed safe_file_operation.c)
