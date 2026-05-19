@@ -10,12 +10,14 @@
 
 int main() {
     // 1. Structural setup: Make sure our targeted filesystem root directory exists
-    mkdir("www", 0777);
+    // FIX: Changed from "www" to "public" to match your http_handler.c
+    mkdir("public", 0777); 
     
     // Create a generic home file if none exists to facilitate immediate evaluation
-    FILE* f = fopen("www/index.html", "r");
+    // FIX: Changed paths to "public/index.html"
+    FILE* f = fopen("public/index.html", "r");
     if (!f) {
-        f = fopen("www/index.html", "w");
+        f = fopen("public/index.html", "w");
         if (f) {
             fprintf(f, "<html><body><h1>Let-us-Connect Functional Ecosystem</h1><p>Non-blocking Keep-Alive Operational.</p></body></html>");
             fclose(f);
