@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon"></div>
+                <h2>C-CORE OS</h2>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="#" class="menu-item active">Telemetry Hub</a>
+                <a href="#" class="menu-item">Thread Pool Config</a>
+                <a href="#" class="menu-item">Virtual Hosts</a>
+                <a href="#" class="menu-item">Security Vault</a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>Engine Status: <span class="pulse-dot"></span></p>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="content-header">
+                <div>
+                    <h1>Engine Telemetry</h1>
+                    <p class="subtitle">Real-time status monitoring of the multi-threaded network stack.</p>
+                </div>
+                <div class="timestamp-box" id="live-clock">
+                    Mon, 18 May 2026 | 07:27:10
+                </div>
+            </header>
+
+            <section class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Active Worker Threads</h3>
+                    <div class="metric-value" id="active-threads">0 / 20</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill intensity-low" id="thread-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h3>FIFO Queue Backlog</h3>
+                    <div class="metric-value" id="queue-size">0</div>
+                    <p class="metric-subtext">Pending connection descriptors</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Server Uptime</h3>
+                    <div class="metric-value" id="uptime-counter">00:00:00</div>
+                    <p class="metric-subtext">Continuous loop runtime</p>
+                </div>
+            </section>
+
+            <section class="data-split-grid">
+                <div class="data-table-card">
+                    <h3>Inbound TCP Frame Stream</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Client Origin IP</th>
+                                    <th>Method</th>
+                                    <th>Target URI Path</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="log-stream-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="resource-card">
+                    <h3>Memory Profile</h3>
+                    <div class="circular-chart-box">
+                        <div class="stat-circle">
+                            <span class="circle-val" id="memory-usage">12.4 MB</span>
+                        </p>
+                    </div>
+                    <ul class="resource-breakdown">
+                        <li><span>FIFO Nodes</span> <span>Allocated</span></li>
+                        <li><span>Thread Stack</span> <span>20 x 8MB default</span></li>
+                        <li><span>Log Buffers</span> <span>Mutex Flushed</span></li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
