@@ -102,15 +102,17 @@ void extract_header_fields(struct HTTPRequest *request, char *header_fields) {
     char *line = strtok_r(header_fields, "\r\n", &saveptr);
     
     while (line) {
-        // Safely find the FIRST colon (Allows values with colons like "Host: localhost:8080")
         char *colon = strchr(line, ':');
         if (colon) {
-            *colon = '\0'; // Split the string into Key and Value
-            
+            *colon = '\0'; 
             char *key = trim_whitespace(line);
             char *value = trim_whitespace(colon + 1);
             
             if (key && value && strlen(key) > 0) {
+                // CRITICAL FIX: Force all header keys to lowercase before saving to the dictionary
+                for (int i = 0; key[i]; i++) {
+                    key[i] = tolower((unsigned char)key[i]);
+                }
                 request->header_fields.insert(&request->header_fields, key, strlen(key) + 1, value, strlen(value) + 1);
             }
         }
@@ -119,22 +121,19 @@ void extract_header_fields(struct HTTPRequest *request, char *header_fields) {
 }
 
 void extract_body(struct HTTPRequest *request, char *body) {
-    // 1. ALWAYS store the raw body in the "data" key. 
-    // This perfectly supports application/json, text/plain, and large socket reads.
     request->body.insert(&request->body, "data", sizeof("data"), body, strlen(body) + 1);
 
-    // 2. Only perform secondary tokenization if the payload is explicitly form data
-    char *content_type = (char *)request->header_fields.search(&request->header_fields, "Content-Type", sizeof("Content-Type"));
+    // Because we lowercased the keys above, we only ever need to search for the lowercase string!
+    char *content_type = (char *)request->header_fields.search(&request->header_fields, "content-type", sizeof("content-type"));
+
     if (content_type && strstr(content_type, "application/x-www-form-urlencoded")) {
-        
         char* body_copy = malloc(strlen(body) + 1);
         if (body_copy) {
             strcpy(body_copy, body);
-            
             char *saveptr;
             char *pair = strtok_r(body_copy, "&", &saveptr);
             while (pair) {
-                char *eq = strchr(pair, '='); // Find first '=' safely
+                char *eq = strchr(pair, '='); 
                 if (eq) {
                     *eq = '\0';
                     char *key = pair;

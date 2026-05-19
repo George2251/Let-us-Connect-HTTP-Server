@@ -150,41 +150,38 @@ void *_thread_task(void *args)
             int client_fd = task->client_fd;
             struct ClientConnection* conn = task->conn;
             
-            // 1. Read available data into the client's personal persistent buffer
+            // NON-BLOCKING READ
             ssize_t bytes_read = recv(client_fd, conn->read_buffer + conn->read_length, 
                                       sizeof(conn->read_buffer) - 1 - conn->read_length, 0);
 
             if (bytes_read > 0) {
                 conn->read_length += bytes_read;
-                conn->read_buffer[conn->read_length] = '\0'; // Ensure string termination
+                conn->read_buffer[conn->read_length] = '\0'; 
                 
-                // 2. STATE MACHINE: Is the HTTP request completely finished?
                 int request_complete = 0;
                 char* headers_end = strstr(conn->read_buffer, "\r\n\r\n");
                 
                 if (headers_end) {
-                    // Headers are finished. Do we need to wait for a POST body?
-                    char* cl_str = strstr(conn->read_buffer, "Content-Length:");
+                    // FIX: strcasestr completely ignores capitalization in the raw buffer
+                    char* cl_str = strcasestr(conn->read_buffer, "Content-Length:");
                     if (cl_str) {
-                        int content_length = atoi(cl_str + 15); // Skip "Content-Length:"
-                        int headers_length = (headers_end - conn->read_buffer) + 4; // +4 for \r\n\r\n
-                        
-                        // Have we received the headers PLUS the entire body payload?
+                        int content_length = atoi(cl_str + 15); 
+                        int headers_length = (headers_end - conn->read_buffer) + 4; 
                         if (conn->read_length >= headers_length + content_length) {
                             request_complete = 1;
                         }
                     } else {
-                        // No Content-Length (like a standard GET), so request is done!
                         request_complete = 1; 
                     }
                 }
 
-                // 3. Process ONLY if the payload is fully assembled
                 if (request_complete) {
                     struct HTTPRequest req = http_request_constructor(conn->read_buffer);
                     
-                    char* connection_val = (char*)req.header_fields.search(&req.header_fields, "Connection", sizeof("Connection"));
-                    int keep_alive = 1; // Default HTTP/1.1
+                    // FIX: Search for the guaranteed lowercase dictionary key
+                    char* connection_val = (char*)req.header_fields.search(&req.header_fields, "connection", sizeof("connection"));
+                    
+                    int keep_alive = 1; 
                     if (connection_val && strcasecmp(connection_val, "close") == 0) keep_alive = 0; 
 
                     char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
@@ -207,28 +204,27 @@ void *_thread_task(void *args)
 
                     http_request_destructor(&req);
 
-                    // 4. Reset the persistent buffer for the next Keep-Alive request
                     conn->read_length = 0;
                     memset(conn->read_buffer, 0, sizeof(conn->read_buffer));
 
                     if (keep_alive && conn->is_active) {
                         conn->last_activity = time(NULL);
-                        conn->is_busy = 0; // Hand back to select loop
+                        conn->is_busy = 0; 
                     } else {
                         close(client_fd);
                         conn->is_active = 0;
                     }
-                } else {
-                    // 5. FRAGMENTED REQUEST: Not enough data yet. Yield thread back to pool!
+                } 
+                else {
                     conn->last_activity = time(NULL);
                     conn->is_busy = 0;
                 }
                 
-            } else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                // 6. SPECULATIVE CONNECTION: No data sent yet. Yield thread back to pool!
+            } 
+            else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                 conn->is_busy = 0; 
-            } else {
-                // 7. CLIENT DISCONNECT: Browser closed the tab or threw a network error
+            } 
+            else {
                 close(client_fd);
                 conn->is_active = 0;
             }
