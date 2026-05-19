@@ -153,6 +153,8 @@ void recursive_tree_destruction(struct Node *node)
 // If the node is found, its data is returned.  Otherwise, NULL is returned.
 void * search_bst(struct BinarySearchTree *tree, void *data)
 {
+    // Return NULL immediately if the tree is empty.
+    if (!tree->head) return NULL;
     // Set the direction int pointer.
     int direction = 0;
     // Utilize iterate to find the desired position.
