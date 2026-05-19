@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>      // <-- ADD THIS LINE
 
 #include "../../include/thread_pool.h"
 #include "../../include/network.h"
@@ -146,49 +147,90 @@ void *_thread_task(void *args)
         // do the actuall work here
         //*******************************************************************/
         if (task != NULL) {
-            char buffer[8192] = {0}; // 8KB Cap compliance constraint
-            ssize_t bytes_read = recv(task->client_fd, buffer, sizeof(buffer) - 1, 0);
+            int client_fd = task->client_fd;
+            struct ClientConnection* conn = task->conn;
+            
+            // 1. Read available data into the client's personal persistent buffer
+            ssize_t bytes_read = recv(client_fd, conn->read_buffer + conn->read_length, 
+                                      sizeof(conn->read_buffer) - 1 - conn->read_length, 0);
 
             if (bytes_read > 0) {
-                struct HTTPRequest req = http_request_constructor(buffer);
-                char* connection_val = (char*)req.header_fields.search(&req.header_fields, "Connection", sizeof("Connection"));
-                int keep_alive = (connection_val && strcasecmp(connection_val, "keep-alive") == 0);
-
-                char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
-                route_handler_t *handler_ptr = NULL;
-
-                if (uri != NULL && task->routes != NULL) {
-                    handler_ptr = (route_handler_t*)task->routes->search(task->routes, uri, strlen(uri) + 1);
-                }
-
-                if (handler_ptr != NULL) {
-                    (*handler_ptr)(task->client_fd, &req);
-                } else {
-                    // If no explicit route dictionary entry exists, fall back to default filesystem handler
-                    
-                    // Make sure we cast to a POINTER to the handler (route_handler_t *)
-                    route_handler_t *fs_handler_ptr = (route_handler_t *)task->routes->search(task->routes, "*", sizeof("*"));
-                    
-                    if (fs_handler_ptr != NULL) {
-                        // FIX: Dereference the pointer to execute the function (*fs_handler_ptr)
-                        (*fs_handler_ptr)(task->client_fd, &req);
+                conn->read_length += bytes_read;
+                conn->read_buffer[conn->read_length] = '\0'; // Ensure string termination
+                
+                // 2. STATE MACHINE: Is the HTTP request completely finished?
+                int request_complete = 0;
+                char* headers_end = strstr(conn->read_buffer, "\r\n\r\n");
+                
+                if (headers_end) {
+                    // Headers are finished. Do we need to wait for a POST body?
+                    char* cl_str = strstr(conn->read_buffer, "Content-Length:");
+                    if (cl_str) {
+                        int content_length = atoi(cl_str + 15); // Skip "Content-Length:"
+                        int headers_length = (headers_end - conn->read_buffer) + 4; // +4 for \r\n\r\n
+                        
+                        // Have we received the headers PLUS the entire body payload?
+                        if (conn->read_length >= headers_length + content_length) {
+                            request_complete = 1;
+                        }
                     } else {
-                        send_error(task->client_fd, 404);
+                        // No Content-Length (like a standard GET), so request is done!
+                        request_complete = 1; 
                     }
                 }
 
-                http_request_destructor(&req);
+                // 3. Process ONLY if the payload is fully assembled
+                if (request_complete) {
+                    struct HTTPRequest req = http_request_constructor(conn->read_buffer);
+                    
+                    char* connection_val = (char*)req.header_fields.search(&req.header_fields, "Connection", sizeof("Connection"));
+                    int keep_alive = 1; // Default HTTP/1.1
+                    if (connection_val && strcasecmp(connection_val, "close") == 0) keep_alive = 0; 
 
-                if (keep_alive && task->conn->is_active) {
-                    task->conn->last_activity = time(NULL);
-                    task->conn->is_busy = 0; // Hand back to main thread select loop
+                    char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
+                    route_handler_t *handler_ptr = NULL;
+
+                    if (uri != NULL && task->routes != NULL) {
+                        handler_ptr = (route_handler_t*)task->routes->search(task->routes, uri, strlen(uri) + 1);
+                    }
+
+                    if (handler_ptr != NULL) {
+                        (*handler_ptr)(client_fd, &req);
+                    } else {
+                        route_handler_t *fs_handler_ptr = (route_handler_t *)task->routes->search(task->routes, "*", sizeof("*"));
+                        if (fs_handler_ptr != NULL) {
+                            (*fs_handler_ptr)(client_fd, &req);
+                        } else {
+                            send_error(client_fd, 404);
+                        }
+                    }
+
+                    http_request_destructor(&req);
+
+                    // 4. Reset the persistent buffer for the next Keep-Alive request
+                    conn->read_length = 0;
+                    memset(conn->read_buffer, 0, sizeof(conn->read_buffer));
+
+                    if (keep_alive && conn->is_active) {
+                        conn->last_activity = time(NULL);
+                        conn->is_busy = 0; // Hand back to select loop
+                    } else {
+                        close(client_fd);
+                        conn->is_active = 0;
+                    }
                 } else {
-                    close(task->client_fd);
-                    task->conn->is_active = 0;
+                    // 5. FRAGMENTED REQUEST: Not enough data yet. Yield thread back to pool!
+                    conn->last_activity = time(NULL);
+                    conn->is_busy = 0;
                 }
+                
+            } else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                // 6. SPECULATIVE CONNECTION: No data sent yet. Yield thread back to pool!
+                conn->is_busy = 0; 
             } else {
-                close(task->client_fd);
-                task->conn->is_active = 0;
+                // 7. CLIENT DISCONNECT: Browser closed the tab or threw a network error
+                close(client_fd);
+                conn->is_active = 0;
             }
             free(task);
         }

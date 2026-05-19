@@ -1,40 +1,63 @@
 #include "http_parser.h"
-#include "../../DataStructures/Lists/Queue.h"
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
+// Forward declarations
 void extract_request_line_fields(struct HTTPRequest *request, char *request_line);
 void extract_header_fields(struct HTTPRequest *request, char *header_fields);
 void extract_body(struct HTTPRequest *request, char *body);
+char *trim_whitespace(char *str);
 
 struct HTTPRequest http_request_constructor(char *request_string) {
     struct HTTPRequest request;
+    
+    // 1. ALWAYS initialize dictionaries first to prevent segfaults during destruction
     request.request_line = dictionary_constructor(compare_string_keys);
     request.header_fields = dictionary_constructor(compare_string_keys);
     request.body = dictionary_constructor(compare_string_keys);
 
-    if (!request_string || strlen(request_string) == 0) return request;
+    // Safe return on empty input. (The initialized dictionaries will safely be freed by the destructor)
+    if (!request_string || request_string[0] == '\0') {
+        return request;
+    }
 
+    // 2. Make a single, safe mutable copy of the entire request
     char* requested = malloc(strlen(request_string) + 1);
+    if (!requested) return request; // Fail gracefully if out of memory
     strcpy(requested, request_string);
 
-    char* separator = strstr(requested, "\r\n\r\n");
-    if (separator) {
-        separator[0] = '|'; separator[1] = '|'; separator[2] = '|'; separator[3] = '|';
+    // 3. Safely locate the HTTP Body boundary (\r\n\r\n) without using strtok
+    char* body_start = strstr(requested, "\r\n\r\n");
+    char* header_part = requested;
+    char* body_part = NULL;
+
+    if (body_start) {
+        *body_start = '\0';         // Terminate the header section
+        body_part = body_start + 4; // The body begins exactly 4 bytes after the \r
     }
 
-    char *request_line = strtok(requested, "\r\n");
-    char *header_fields = strtok(NULL, "|");
-    char *body = strtok(NULL, "|");
+    // 4. Safely locate the end of the Request Line (\r\n)
+    char* headers_start = strstr(header_part, "\r\n");
+    char* request_line_part = header_part;
 
-    // Advance body pointer over pipe relics if headers exist
-    if (body) {
-        while (*body == '|' || *body == '\r' || *body == '\n') body++;
+    if (headers_start) {
+        *headers_start = '\0';      // Terminate the request line
+        headers_start += 2;         // Headers begin exactly 2 bytes after
     }
 
-    if (request_line) extract_request_line_fields(&request, request_line);
-    if (header_fields) extract_header_fields(&request, header_fields);
-    if (body) extract_body(&request, body);
+    // 5. Extract fields safely based on pointer lengths
+    if (request_line_part && strlen(request_line_part) > 0) {
+        extract_request_line_fields(&request, request_line_part);
+    }
+    
+    if (headers_start && strlen(headers_start) > 0) {
+        extract_header_fields(&request, headers_start);
+    }
+
+    if (body_part && strlen(body_part) > 0) {
+        extract_body(&request, body_part);
+    }
 
     free(requested);
     return request;
@@ -46,73 +69,83 @@ void http_request_destructor(struct HTTPRequest *request) {
     dictionary_destructor(&request->body);
 }
 
-void extract_request_line_fields(struct HTTPRequest *request, char *request_line) {
-    char* fields = malloc(strlen(request_line) + 1);
-    strcpy(fields, request_line);
+// Utility: Safely trim leading and trailing whitespace from strings
+char *trim_whitespace(char *str) {
+    if (!str) return NULL;
     
-    char *method = strtok(fields, " ");
-    char *uri = strtok(NULL, " ");
-    char *http_version = strtok(NULL, "\r\n");
+    // Trim leading space
+    while (isspace((unsigned char)*str)) str++;
+    if (*str == 0) return str; // All spaces?
+    
+    // Trim trailing space
+    char *end = str + strlen(str) - 1;
+    while (end > str && isspace((unsigned char)*end)) end--;
+    
+    // Write new null terminator
+    end[1] = '\0';
+    return str;
+}
+
+void extract_request_line_fields(struct HTTPRequest *request, char *request_line) {
+    char *saveptr;
+    char *method = strtok_r(request_line, " ", &saveptr);
+    char *uri = strtok_r(NULL, " ", &saveptr);
+    char *http_version = strtok_r(NULL, " ", &saveptr);
     
     if (method) request->request_line.insert(&request->request_line, "method", sizeof("method"), method, strlen(method) + 1);
     if (uri) request->request_line.insert(&request->request_line, "uri", sizeof("uri"), uri, strlen(uri) + 1);
     if (http_version) request->request_line.insert(&request->request_line, "http_version", sizeof("http_version"), http_version, strlen(http_version) + 1);
-    
-    free(fields);
 }
 
 void extract_header_fields(struct HTTPRequest *request, char *header_fields) {
-    char* fields = malloc(strlen(header_fields) + 1);
-    strcpy(fields, header_fields);
+    char *saveptr;
+    char *line = strtok_r(header_fields, "\r\n", &saveptr);
     
-    struct Queue headers = queue_constructor();
-    char *field = strtok(fields, "\r\n");
-    while (field) {
-        headers.push(&headers, field, strlen(field) + 1);
-        field = strtok(NULL, "\r\n");
-    }
-    
-    char *header = (char *)headers.peek(&headers);
-    while (header) {
-        char *key = strtok(header, ":");
-        char *value = strtok(NULL, "\0");
-        if (key && value) {
-            while (*value == ' ') value++;
-            request->header_fields.insert(&request->header_fields, key, strlen(key) + 1, value, strlen(value) + 1);
+    while (line) {
+        // Safely find the FIRST colon (Allows values with colons like "Host: localhost:8080")
+        char *colon = strchr(line, ':');
+        if (colon) {
+            *colon = '\0'; // Split the string into Key and Value
+            
+            char *key = trim_whitespace(line);
+            char *value = trim_whitespace(colon + 1);
+            
+            if (key && value && strlen(key) > 0) {
+                request->header_fields.insert(&request->header_fields, key, strlen(key) + 1, value, strlen(value) + 1);
+            }
         }
-        headers.pop(&headers);
-        header = (char *)headers.peek(&headers);
+        line = strtok_r(NULL, "\r\n", &saveptr);
     }
-    queue_destructor(&headers);
-    free(fields);
 }
 
 void extract_body(struct HTTPRequest *request, char *body) {
+    // 1. ALWAYS store the raw body in the "data" key. 
+    // This perfectly supports application/json, text/plain, and large socket reads.
+    request->body.insert(&request->body, "data", sizeof("data"), body, strlen(body) + 1);
+
+    // 2. Only perform secondary tokenization if the payload is explicitly form data
     char *content_type = (char *)request->header_fields.search(&request->header_fields, "Content-Type", sizeof("Content-Type"));
     if (content_type && strstr(content_type, "application/x-www-form-urlencoded")) {
-        struct Queue fields = queue_constructor();
+        
         char* body_copy = malloc(strlen(body) + 1);
-        strcpy(body_copy, body);
-        
-        char *field = strtok(body_copy, "&");
-        while (field) {
-            fields.push(&fields, field, strlen(field) + 1);
-            field = strtok(NULL, "&");
-        }
-        
-        field = fields.peek(&fields);
-        while (field) {
-            char *key = strtok(field, "=");
-            char *value = strtok(NULL, "\0");
-            if (key && value) {
-                request->body.insert(&request->body, key, strlen(key) + 1, value, strlen(value) + 1);
+        if (body_copy) {
+            strcpy(body_copy, body);
+            
+            char *saveptr;
+            char *pair = strtok_r(body_copy, "&", &saveptr);
+            while (pair) {
+                char *eq = strchr(pair, '='); // Find first '=' safely
+                if (eq) {
+                    *eq = '\0';
+                    char *key = pair;
+                    char *value = eq + 1;
+                    if (key && value) {
+                        request->body.insert(&request->body, key, strlen(key) + 1, value, strlen(value) + 1);
+                    }
+                }
+                pair = strtok_r(NULL, "&", &saveptr);
             }
-            fields.pop(&fields);
-            field = fields.peek(&fields);
+            free(body_copy);
         }
-        queue_destructor(&fields);
-        free(body_copy);
-    } else {
-        request->body.insert(&request->body, "data", sizeof("data"), body, strlen(body) + 1);
     }
 }
