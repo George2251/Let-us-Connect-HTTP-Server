@@ -194,6 +194,7 @@ void *_thread_task(void *args)
         }
         //*******************************************************************/
         // end of work
+
         // lock the thread pool again to reflect that this thread
         // is no longer busy doing work
         pthread_mutex_lock(thrd_pl->pool_lock);
