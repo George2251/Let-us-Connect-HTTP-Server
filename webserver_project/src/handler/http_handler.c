@@ -57,8 +57,8 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest* req) {
 
         printf("\n--- Received POST Payload data ---\n%s\n----------------------------------\n", body_data);
 
-        mkdir("www", 0777); 
-        int log_fd = open("www/post_data.txt", O_WRONLY | O_CREAT | O_APPEND, 0666);
+        mkdir("public", 0777); 
+        int log_fd = open("public/post_data.txt", O_WRONLY | O_CREAT | O_APPEND, 0666);
         if (log_fd != -1) {
             write(log_fd, body_data, strlen(body_data));
             write(log_fd, "\n", 1);
@@ -76,7 +76,7 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest* req) {
     }
 
     char local_path[512];
-    snprintf(local_path, sizeof(local_path), "www%s", uri);
+    snprintf(local_path, sizeof(local_path), "public%s", uri);
     if (local_path[strlen(local_path) - 1] == '/') {
         strncat(local_path, "index.html", sizeof(local_path) - strlen(local_path) - 1);
     }
