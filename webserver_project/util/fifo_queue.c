@@ -4,7 +4,7 @@
 
 
 int fifo_queue_init(fifo_queue_t* queue)
-{
+{   // if (!queue) return INVALID_INPUT; // We can assume the caller will pass a valid pointer, so we can skip this check to save time.
     queue->size=0;
     queue->first=NULL;
     queue->last=NULL;
