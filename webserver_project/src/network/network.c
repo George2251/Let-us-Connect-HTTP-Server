@@ -258,6 +258,7 @@ void send_error(int fd, int code) {
         case 400: text = "Bad Request"; break;
         case 403: text = "Forbidden"; break;
         case 405: text = "Method Not Allowed"; break;
+        case 411: text = "Length Required"; break; // <-- ADD THIS LINE!
         case 501: text = "Not Implemented"; break;
         default: text = "Internal Server Error"; break;
     }

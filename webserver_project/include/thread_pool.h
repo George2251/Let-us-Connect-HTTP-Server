@@ -21,7 +21,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include "fifo_queue.h"
-#include "network.h"
 
 #define INVALID_INPUT               1
 #define ERROR_INITIALIZING_QUEUE    2
