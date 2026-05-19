@@ -47,19 +47,21 @@ void dictionary_destructor(struct Dictionary *dictionary)
 // MARK: PRIVATE MEMBER FUNCTIONS
 void recursive_dictionary_destroy(struct Node *cursor)
 {
-    if (cursor->previous)
+    // Base case: if node is NULL, there is nothing to destroy
+    if (cursor == NULL)
     {
-        recursive_dictionary_destroy(cursor->previous);
+        return;
     }
-    if (cursor->next)
-    {
-        recursive_dictionary_destroy(cursor->next);
-    }
+
+    // Recurse to children
+    recursive_dictionary_destroy(cursor->previous);
+    recursive_dictionary_destroy(cursor->next);
+
+    // Free the current node's data and the node itself
     entry_destructor((struct Entry *)cursor->data);
     free(cursor->data);
     free(cursor);
 }
-
 // MARK: PUBLIC MEMBER FUNCTIONS
 
 void * search_dict(struct Dictionary *dictionary, void *key, unsigned long key_size)
