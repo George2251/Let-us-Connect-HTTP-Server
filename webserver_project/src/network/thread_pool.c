@@ -1,14 +1,15 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <unistd.h>
-
-// for testing
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "../../include/thread_pool.h"
-#include "../../include/safe_file_operation.h"
+#include "../../include/network.h"
+#include "../../include/http_parser.h"
+#include "../../DataStructures/Dictionary/Dictionary.h"
 
 int thread_pool_init(thread_pool_t *thrd_pl, int max_thread_num, int size_option, const char *pool_name)
 {
@@ -144,45 +145,51 @@ void *_thread_task(void *args)
 
         // do the actuall work here
         //*******************************************************************/
-        if (task != NULL)
-        {
-            char buffer[9182] = {0}; // buffer to hold the incoming HTTP request
-            // Read from the socket. Using MSG_NOSIGNAL prevents crashing if the client disconnects early.
-            ssize_t bytes_read = recv(task->client_fd, buffer, sizeof(buffer) - 1, MSG_NOSIGNAL);
-            if (bytes_read > 0)
-            {
-                // 1. Construct the HTTP request dictionary from the raw text
+        if (task != NULL) {
+            char buffer[8192] = {0}; // 8KB Cap compliance constraint
+            ssize_t bytes_read = recv(task->client_fd, buffer, sizeof(buffer) - 1, 0);
+
+            if (bytes_read > 0) {
                 struct HTTPRequest req = http_request_constructor(buffer);
+                char* connection_val = (char*)req.header_fields.search(&req.header_fields, "Connection", sizeof("Connection"));
+                int keep_alive = (connection_val && strcasecmp(connection_val, "keep-alive") == 0);
 
-                // 2. Extract the requested URI
-                char *uri = (char *)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
-
-                // FIX: Look up a pointer to the handler, not the handler itself
+                char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
                 route_handler_t *handler_ptr = NULL;
 
-                // 3. Search the routes dictionary
-                if (uri != NULL && task->routes != NULL)
-                {
-                    handler_ptr = (route_handler_t *)task->routes->search(task->routes, uri, strlen(uri) + 1);
+                if (uri != NULL && task->routes != NULL) {
+                    handler_ptr = (route_handler_t*)task->routes->search(task->routes, uri, strlen(uri) + 1);
                 }
 
-                // 4. If a route matches, dereference and execute. Otherwise, send a 404.
-                if (handler_ptr != NULL)
-                {
+                if (handler_ptr != NULL) {
                     (*handler_ptr)(task->client_fd, &req);
-                }
-                else
-                {
-                    send_error(task->client_fd, 404);
+                } else {
+                    // If no explicit route dictionary entry exists, fall back to default filesystem handler
+                    
+                    // Make sure we cast to a POINTER to the handler (route_handler_t *)
+                    route_handler_t *fs_handler_ptr = (route_handler_t *)task->routes->search(task->routes, "*", sizeof("*"));
+                    
+                    if (fs_handler_ptr != NULL) {
+                        // FIX: Dereference the pointer to execute the function (*fs_handler_ptr)
+                        (*fs_handler_ptr)(task->client_fd, &req);
+                    } else {
+                        send_error(task->client_fd, 404);
+                    }
                 }
 
-                // 5. Deallocate the dictionaries inside the request struct
                 http_request_destructor(&req);
-            }
-            // 6. Close the socket when finished
-            close(task->client_fd);
 
-            // 7. Free the memory for the task that was allocated back in network.c
+                if (keep_alive && task->conn->is_active) {
+                    task->conn->last_activity = time(NULL);
+                    task->conn->is_busy = 0; // Hand back to main thread select loop
+                } else {
+                    close(task->client_fd);
+                    task->conn->is_active = 0;
+                }
+            } else {
+                close(task->client_fd);
+                task->conn->is_active = 0;
+            }
             free(task);
         }
         //*******************************************************************/
