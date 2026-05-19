@@ -8,6 +8,7 @@
 #include "include/http_handler.h"
 #include "../DataStructures/Dictionary/Dictionary.h"
 
+
 int main() {
     // 1. Structural setup: Make sure our targeted filesystem root directory exists
     // FIX: Changed from "www" to "public" to match your http_handler.c

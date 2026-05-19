@@ -1,0 +1,5 @@
+:cmock:
+  :mock_path: "test/mocks"
+  :includes:
+    - <stdint.h>
+    - <stdbool.h>
