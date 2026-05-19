@@ -38,6 +38,5 @@ void entry_destructor(struct Entry *entry)
 {
     free(entry->key);
     free(entry->value);
-    free(entry);
 }
 
