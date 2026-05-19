@@ -66,8 +66,11 @@ void recursive_dictionary_destroy(struct Node *cursor)
 
 void * search_dict(struct Dictionary *dictionary, void *key, unsigned long key_size)
 {
-    int dummy_value = 0;
-    struct Entry searchable = entry_constructor(key, key_size, &dummy_value, sizeof(dummy_value));
+    // Build a stack-local Entry with borrowed pointers — no heap allocation needed.
+    (void)key_size;
+    struct Entry searchable;
+    searchable.key   = key;
+    searchable.value = NULL;
     // Use the iterate function of the BinarySearchTree to find the desired element.
     void * result = dictionary->binary_search_tree.search(&dictionary->binary_search_tree, &searchable);
     // Return either the value for that key or NULL if not found.
