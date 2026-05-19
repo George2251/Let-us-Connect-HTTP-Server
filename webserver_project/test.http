@@ -1,0 +1,62 @@
+### 1. TEST GET (Fetch Homepage)
+### Expected: 200 OK, returns Crimson HTML page
+GET http://localhost:8080/ HTTP/1.1
+Host: www.fakeHub.com
+Connection: keep-alive
+
+###
+
+### 2. TEST HEAD (Fetch Headers Only)
+### Expected: 200 OK, Content-Length present, but NO HTML body returned
+HEAD http://localhost:8080/index.html HTTP/1.1
+Host: www.fakeHub.com
+Connection: keep-alive
+
+###
+
+### 3. TEST PUT (Upload/Create a New File)
+### Expected: 201 Created. This will create a file named 'notes.txt'
+PUT http://localhost:8080/www.fakeHub.com/notes.txt HTTP/1.1
+Host: www.fakeHub.com
+Connection: keep-alive
+Content-Type: text/plain
+Content-Length: 48
+
+Hello! This file was uploaded via a PUT request.
+
+###
+
+### 4. TEST GET (Verify the PUT upload worked)
+### Expected: 200 OK, returns the "Hello! This file..." text string
+GET http://localhost:8080/notes.txt HTTP/1.1
+Host: www.fakeHub.com
+Connection: keep-alive
+
+###
+
+### 5. TEST POST (Submit Form Data)
+### Expected: 303 See Other, redirects browser to root path '/'
+### Check your disk: public/www.fakeHub.com/submissions.txt will be created!
+POST http://localhost:8080/contact HTTP/1.1
+Host: www.fakeHub.com
+Connection: keep-alive
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 39
+
+username=mohamed&message=ServerIsWorking
+
+###
+
+### 6. TEST DELETE (Remove the uploaded file)
+### Expected: 200 OK, returns HTML "File Deleted" message
+DELETE http://localhost:8080/notes.txt HTTP/1.1
+Host: www.fakeHub.com
+Connection: keep-alive
+
+###
+
+### 7. TEST GET (Verify DELETE worked)
+### Expected: 404 Not Found (since the file was just unlinked)
+GET http://localhost:8080/notes.txt HTTP/1.1
+Host: www.fakeHub.com
+Connection: close

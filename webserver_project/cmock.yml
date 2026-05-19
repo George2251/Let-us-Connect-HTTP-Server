@@ -1,0 +1,8 @@
+:cmock:
+  :mock_path: "test/mocks"
+  :includes:
+    - <stdint.h>
+  :plugins:
+    - ignore
+    - cexception
+    - callback
