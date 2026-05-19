@@ -165,9 +165,13 @@ void *_thread_task(void *args)
                     (*handler_ptr)(task->client_fd, &req);
                 } else {
                     // If no explicit route dictionary entry exists, fall back to default filesystem handler
-                    route_handler_t fs_handler = (route_handler_t)task->routes->search(task->routes, "*", sizeof("*"));
-                    if (fs_handler != NULL) {
-                        fs_handler(task->client_fd, &req);
+                    
+                    // Make sure we cast to a POINTER to the handler (route_handler_t *)
+                    route_handler_t *fs_handler_ptr = (route_handler_t *)task->routes->search(task->routes, "*", sizeof("*"));
+                    
+                    if (fs_handler_ptr != NULL) {
+                        // FIX: Dereference the pointer to execute the function (*fs_handler_ptr)
+                        (*fs_handler_ptr)(task->client_fd, &req);
                     } else {
                         send_error(task->client_fd, 404);
                     }
