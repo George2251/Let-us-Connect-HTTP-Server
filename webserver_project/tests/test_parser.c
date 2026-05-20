@@ -78,7 +78,7 @@ void test_http_parser_should_extract_url_encoded_body_fields(void) {
 void test_http_parser_should_not_crash_on_empty_string(void) {
     char raw_request[] = "";
     
-    printf("\n--- DEBUGGING TEST 4 START ---\n");
+    printf("\n--- Testing the crash ---\n");
     printf("[1] Before constructor - Sending empty string.\n");
     
     struct HTTPRequest req = http_request_constructor(raw_request);
@@ -101,16 +101,77 @@ void test_http_parser_should_not_crash_on_empty_string(void) {
     TEST_ASSERT_NULL_MESSAGE(method, "Method should be NULL for an empty request");
 
     http_request_destructor(&req);
-    printf("--- DEBUGGING TEST 4 END ---\n\n");
+    printf("---  TEST 4 END ---\n\n");
+}
+void test_http_parser_header_with_no_value(void) {
+    // A colon with nothing after it, followed immediately by the end of headers
+    char raw_request[] = "GET / HTTP/1.1\r\nAffected-Header:\r\n\r\n";
+    
+    struct HTTPRequest req = http_request_constructor(raw_request);
+    
+    // Ensure it doesn't crash and either ignores the header or stores an empty string Safely
+    char* val = (char*)req.header_fields.search(&req.header_fields, "affected-header", sizeof("affected-header"));
+    // It should handle this without dropping out with a Segfault!
+    
+    http_request_destructor(&req);
+}
+void test_http_parser_multiple_spaces_in_request_line(void) {
+    // Maliciously padded spaces
+    char raw_request[] = "GET      /weird-uri/test.php     HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    
+    struct HTTPRequest req = http_request_constructor(raw_request);
+
+    char* method = (char*)req.request_line.search(&req.request_line, "method", sizeof("method"));
+    char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
+    char* version = (char*)req.request_line.search(&req.request_line, "http_version", sizeof("http_version"));
+
+    TEST_ASSERT_EQUAL_STRING("GET", method);
+    TEST_ASSERT_EQUAL_STRING("/weird-uri/test.php", uri);
+    TEST_ASSERT_EQUAL_STRING("HTTP/1.1", version);
+
+    http_request_destructor(&req);
 }
 
+void test_http_parser_header_with_only_spaces(void) {
+    char raw_request[] = "GET / HTTP/1.1\r\nX-Empty-Header:             \r\n\r\n";
+    
+    struct HTTPRequest req = http_request_constructor(raw_request);
+    
+    char* val = (char*)req.header_fields.search(&req.header_fields, "x-empty-header", sizeof("x-empty-header"));
+    // The trimmer must cleanly reduce this to an empty string "" or return NULL safely
+    if (val) {
+        TEST_ASSERT_EQUAL_STRING("", val);
+    }
+
+    http_request_destructor(&req);
+}
+
+void test_http_parser_invalid_url_encoded_body(void) {
+    char raw_request[] = 
+        "POST /submit HTTP/1.1\r\n"
+        "Content-Type: application/x-www-form-urlencoded\r\n\r\n"
+        "this_is_garbage_data_with_no_equal_signs_or_ampersands";
+        
+    // This will force extract_body to look for key/value separations that don't exist
+    struct HTTPRequest req = http_request_constructor(raw_request);
+
+    char* raw_data = (char*)req.body.search(&req.body, "data", sizeof("data"));
+    TEST_ASSERT_NOT_NULL(raw_data);
+    
+    // It should preserve the raw string, but not corrupt the dictionary structure
+    http_request_destructor(&req);
+}
 int main(void) {
     UNITY_BEGIN();
 
-    // RUN_TEST(test_http_parser_should_extract_request_line_correctly);
-    // RUN_TEST(test_http_parser_should_force_headers_to_lowercase);
-    // RUN_TEST(test_http_parser_should_extract_url_encoded_body_fields);
+    RUN_TEST(test_http_parser_should_extract_request_line_correctly);
+    RUN_TEST(test_http_parser_should_force_headers_to_lowercase);
+    RUN_TEST(test_http_parser_should_extract_url_encoded_body_fields);
     RUN_TEST(test_http_parser_should_not_crash_on_empty_string);
+    RUN_TEST(test_http_parser_header_with_no_value);
+    RUN_TEST(test_http_parser_multiple_spaces_in_request_line);
+    RUN_TEST(test_http_parser_header_with_only_spaces);
+    RUN_TEST(test_http_parser_invalid_url_encoded_body);
 
     return UNITY_END();
 }
