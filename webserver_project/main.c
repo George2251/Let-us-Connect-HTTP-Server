@@ -8,8 +8,34 @@
 #include "include/http_handler.h"
 #include "../DataStructures/Dictionary/Dictionary.h"
 
+#include "include/logger.h"
+int main(int argc, char *argv[])
+{
+         int num_of_threads=8;
+    if(argc>1)
+    {
+        num_of_threads=atoi(argv[1]);
+    }
 
-int main() {
+    logger_init("LogFile");
+
+if (logger_init("server.log") != 0)
+    {
+        fprintf(stderr,
+                "Failed to initialize logger\n");
+
+        return 1;
+    }
+  int server_fd = network_init(8080);
+
+    if (logger_init("server.log") != 0)
+    {
+        fprintf(stderr,
+                "Failed to initialize logger\n");
+
+        return 1;
+    }
+
     // 1. Structural setup: Make sure our targeted filesystem root directory exists
     // FIX: Changed from "www" to "public" to match your http_handler.c
     mkdir("public", 0777); 
