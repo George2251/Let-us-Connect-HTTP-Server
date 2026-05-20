@@ -1,0 +1,99 @@
+#include "unity.h"
+#include "http_parser.h"
+#include <string.h>
+#include <stdlib.h>
+
+void setUp(void) {
+    // No mock initialization needed! This is a pure unit test.
+}
+
+void tearDown(void) {
+    // No mock cleanup needed!
+}
+
+// --- TEST 1: Standard GET Request ---
+void test_http_parser_should_extract_request_line_correctly(void) {
+    char raw_request[] = "GET /index.html HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    
+    struct HTTPRequest req = http_request_constructor(raw_request);
+
+    char* method = (char*)req.request_line.search(&req.request_line, "method", sizeof("method"));
+    char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
+    char* version = (char*)req.request_line.search(&req.request_line, "http_version", sizeof("http_version"));
+
+    TEST_ASSERT_NOT_NULL_MESSAGE(method, "Method should not be NULL");
+    TEST_ASSERT_EQUAL_STRING("GET", method);
+    TEST_ASSERT_EQUAL_STRING("/index.html", uri);
+    TEST_ASSERT_EQUAL_STRING("HTTP/1.1", version);
+
+    http_request_destructor(&req);
+}
+
+// --- TEST 2: Header Lowercasing (Testing your recent fix!) ---
+void test_http_parser_should_force_headers_to_lowercase(void) {
+    char raw_request[] = "GET / HTTP/1.1\r\nContent-Length: 42\r\nKeep-Alive: timeout=5\r\n\r\n";
+    
+    struct HTTPRequest req = http_request_constructor(raw_request);
+
+    // Notice we search using lowercase keys!
+    char* cl = (char*)req.header_fields.search(&req.header_fields, "content-length", sizeof("content-length"));
+    char* ka = (char*)req.header_fields.search(&req.header_fields, "keep-alive", sizeof("keep-alive"));
+
+    TEST_ASSERT_NOT_NULL_MESSAGE(cl, "Failed to find lowercase 'content-length'");
+    TEST_ASSERT_EQUAL_STRING("42", cl);
+    
+    TEST_ASSERT_NOT_NULL_MESSAGE(ka, "Failed to find lowercase 'keep-alive'");
+    TEST_ASSERT_EQUAL_STRING("timeout=5", ka);
+
+    http_request_destructor(&req);
+}
+
+// --- TEST 3: Form URL-Encoded POST Body ---
+void test_http_parser_should_extract_url_encoded_body_fields(void) {
+    char raw_request[] = 
+        "POST /submit HTTP/1.1\r\n"
+        "Content-Type: application/x-www-form-urlencoded\r\n\r\n"
+        "username=admin&password=12345";
+        
+    struct HTTPRequest req = http_request_constructor(raw_request);
+
+    // 1. Check if the raw data was saved
+    char* raw_data = (char*)req.body.search(&req.body, "data", sizeof("data"));
+    TEST_ASSERT_NOT_NULL(raw_data);
+    TEST_ASSERT_EQUAL_STRING("username=admin&password=12345", raw_data);
+
+    // 2. Check if it successfully split the key/value pairs
+    char* user = (char*)req.body.search(&req.body, "username", sizeof("username"));
+    char* pass = (char*)req.body.search(&req.body, "password", sizeof("password"));
+
+    TEST_ASSERT_NOT_NULL_MESSAGE(user, "Failed to parse username from body");
+    TEST_ASSERT_EQUAL_STRING("admin", user);
+    TEST_ASSERT_EQUAL_STRING("12345", pass);
+
+    http_request_destructor(&req);
+}
+
+// --- TEST 4: Empty Request Safety (Anti-Crash Test) ---
+void test_http_parser_should_not_crash_on_empty_string(void) {
+    char raw_request[] = "";
+    
+    // If the parser isn't safe, this will segfault and fail the test.
+    struct HTTPRequest req = http_request_constructor(raw_request);
+
+    char* method = (char*)req.request_line.search(&req.request_line, "method", sizeof("method"));
+    TEST_ASSERT_NULL_MESSAGE(method, "Method should be NULL for an empty request");
+
+    // Destructor should also safely handle empty dictionaries without crashing
+    http_request_destructor(&req);
+}
+
+int main(void) {
+    UNITY_BEGIN();
+
+    RUN_TEST(test_http_parser_should_extract_request_line_correctly);
+    RUN_TEST(test_http_parser_should_force_headers_to_lowercase);
+    RUN_TEST(test_http_parser_should_extract_url_encoded_body_fields);
+    RUN_TEST(test_http_parser_should_not_crash_on_empty_string);
+
+    return UNITY_END();
+}
