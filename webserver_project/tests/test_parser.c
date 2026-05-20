@@ -78,30 +78,14 @@ void test_http_parser_should_extract_url_encoded_body_fields(void) {
 void test_http_parser_should_not_crash_on_empty_string(void) {
     char raw_request[] = "";
     
-    printf("\n--- Testing the crash ---\n");
-    printf("[1] Before constructor - Sending empty string.\n");
-    
     struct HTTPRequest req = http_request_constructor(raw_request);
-
-    printf("[2] After constructor - Structure returned successfully!\n");
-    printf("    Address of request_line dictionary: %p\n", (void*)&req.request_line);
-    printf("    Address of search function pointer: %p\n", (void*)req.request_line.search);
-
-    // Safety guard to catch uninitialized or garbage function pointers early
-    if (req.request_line.search == NULL) {
-        printf("    [CRITICAL ALERT]: The search function pointer is NULL! Calling it will crash.\n");
-    } else {
-        printf("    [INFO]: The search function pointer exists. Attempting execution...\n");
-    }
 
     // This is the line where the application falls over
     char* method = (char*)(req.request_line.search(&req.request_line, "method", sizeof("method")));
     
-    printf("[3] After search execution - Result: %p\n", (void*)method);
     TEST_ASSERT_NULL_MESSAGE(method, "Method should be NULL for an empty request");
 
     http_request_destructor(&req);
-    printf("---  TEST 4 END ---\n\n");
 }
 void test_http_parser_header_with_no_value(void) {
     // A colon with nothing after it, followed immediately by the end of headers
