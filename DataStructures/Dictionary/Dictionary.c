@@ -66,7 +66,16 @@ void recursive_dictionary_destroy(struct Node *cursor)
 
 void * search_dict(struct Dictionary *dictionary, void *key, unsigned long key_size)
 {
+    #include <stdio.h>
+    if (dictionary == NULL || key == NULL) {
+        printf("breaks here");
+        return NULL;
+    }
+    if (dictionary->binary_search_tree.head == NULL) { 
+        return NULL; // Return NULL safely instead of crashing!
+    }
     int dummy_value = 0;
+    printf("breaks here at the entry constructor");
     struct Entry searchable = entry_constructor(key, key_size, &dummy_value, sizeof(dummy_value));
     // Use the iterate function of the BinarySearchTree to find the desired element.
     void * result = dictionary->binary_search_tree.search(&dictionary->binary_search_tree, &searchable);

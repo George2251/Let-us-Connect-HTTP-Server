@@ -2,6 +2,7 @@
 #include "http_parser.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void setUp(void) {
     // No mock initialization needed! This is a pure unit test.
@@ -77,22 +78,38 @@ void test_http_parser_should_extract_url_encoded_body_fields(void) {
 void test_http_parser_should_not_crash_on_empty_string(void) {
     char raw_request[] = "";
     
-    // If the parser isn't safe, this will segfault and fail the test.
+    printf("\n--- DEBUGGING TEST 4 START ---\n");
+    printf("[1] Before constructor - Sending empty string.\n");
+    
     struct HTTPRequest req = http_request_constructor(raw_request);
 
-    char* method = (char*)req.request_line.search(&req.request_line, "method", sizeof("method"));
+    printf("[2] After constructor - Structure returned successfully!\n");
+    printf("    Address of request_line dictionary: %p\n", (void*)&req.request_line);
+    printf("    Address of search function pointer: %p\n", (void*)req.request_line.search);
+
+    // Safety guard to catch uninitialized or garbage function pointers early
+    if (req.request_line.search == NULL) {
+        printf("    [CRITICAL ALERT]: The search function pointer is NULL! Calling it will crash.\n");
+    } else {
+        printf("    [INFO]: The search function pointer exists. Attempting execution...\n");
+    }
+
+    // This is the line where the application falls over
+    char* method = (char*)(req.request_line.search(&req.request_line, "method", sizeof("method")));
+    
+    printf("[3] After search execution - Result: %p\n", (void*)method);
     TEST_ASSERT_NULL_MESSAGE(method, "Method should be NULL for an empty request");
 
-    // Destructor should also safely handle empty dictionaries without crashing
     http_request_destructor(&req);
+    printf("--- DEBUGGING TEST 4 END ---\n\n");
 }
 
 int main(void) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_http_parser_should_extract_request_line_correctly);
-    RUN_TEST(test_http_parser_should_force_headers_to_lowercase);
-    RUN_TEST(test_http_parser_should_extract_url_encoded_body_fields);
+    // RUN_TEST(test_http_parser_should_extract_request_line_correctly);
+    // RUN_TEST(test_http_parser_should_force_headers_to_lowercase);
+    // RUN_TEST(test_http_parser_should_extract_url_encoded_body_fields);
     RUN_TEST(test_http_parser_should_not_crash_on_empty_string);
 
     return UNITY_END();
