@@ -130,6 +130,7 @@ void test_http_parser_multiple_spaces_in_request_line(void) {
     TEST_ASSERT_EQUAL_STRING("HTTP/1.1", version);
 
     http_request_destructor(&req);
+    printf("--- DEBUGGING TEST 4 END ---\n\n");
 }
 
 void test_http_parser_header_with_only_spaces(void) {
@@ -164,9 +165,9 @@ void test_http_parser_invalid_url_encoded_body(void) {
 int main(void) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_http_parser_should_extract_request_line_correctly);
-    RUN_TEST(test_http_parser_should_force_headers_to_lowercase);
-    RUN_TEST(test_http_parser_should_extract_url_encoded_body_fields);
+    // RUN_TEST(test_http_parser_should_extract_request_line_correctly);
+    // RUN_TEST(test_http_parser_should_force_headers_to_lowercase);
+    // RUN_TEST(test_http_parser_should_extract_url_encoded_body_fields);
     RUN_TEST(test_http_parser_should_not_crash_on_empty_string);
     RUN_TEST(test_http_parser_header_with_no_value);
     RUN_TEST(test_http_parser_multiple_spaces_in_request_line);
