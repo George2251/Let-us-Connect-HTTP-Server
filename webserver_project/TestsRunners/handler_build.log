@@ -1,0 +1,6 @@
+../tests/test_handler.c:36:52: warning: ‘struct ClientTask’ declared inside parameter list will not be visible outside of this definition or declaration
+   36 | int add_work(struct thread_pool_t *thrd_pl, struct ClientTask *task) {
+      |                                                    ^~~~~~~~~~
+../tests/test_handler.c:36:21: warning: ‘struct thread_pool_t’ declared inside parameter list will not be visible outside of this definition or declaration
+   36 | int add_work(struct thread_pool_t *thrd_pl, struct ClientTask *task) {
+      |                     ^~~~~~~~~~~~~
