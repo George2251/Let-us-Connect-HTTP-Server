@@ -152,7 +152,10 @@ void recursive_tree_destruction(struct Node *node)
 // The search function utilizes the iterate function to test if a given node exists in the tree.
 // If the node is found, its data is returned.  Otherwise, NULL is returned.
 void * search_bst(struct BinarySearchTree *tree, void *data)
-{
+{   
+    if (tree == NULL) {
+        return NULL;
+    }
     // Set the direction int pointer.
     int direction = 0;
     // Utilize iterate to find the desired position.

@@ -1,0 +1,42 @@
+
+//compiling the parser test
+gcc -Wall -Wextra -g -DTEST \
+    -I../include \
+    -I../tests/unity \
+    -I../../DataStructures/Dictionary \
+    -I../../DataStructures/Common \
+    -I../../DataStructures/Trees \
+    -I../../DataStructures/Lists \
+    ../tests/unity/unity.c \
+    ../../DataStructures/Dictionary/Dictionary.c \
+    ../../DataStructures/Dictionary/Entry.c\
+    ../../DataStructures/Trees/BinarySearchTree.c \
+    ../../DataStructures/Lists/LinkedList.c \
+    ../../DataStructures/Common/Node.c \
+    ../src/parser/http_parser.c \
+    ../tests/test_parser.c \
+    -o parser_test_runner >build.log 2>&1
+
+
+
+// compiling the handler test
+
+
+gcc -Wall -Wextra -g -DTEST \
+    -I../include \
+    -I../tests/unity \
+    -I../../DataStructures/Dictionary \
+    -I../../DataStructures/Common \
+    -I../../DataStructures/Trees \
+    -I../../DataStructures/Lists \
+    ../tests/unity/unity.c \
+    ../../DataStructures/Dictionary/Dictionary.c \
+    ../../DataStructures/Dictionary/Entry.c \
+    ../../DataStructures/Trees/BinarySearchTree.c \
+    ../../DataStructures/Lists/LinkedList.c \
+    ../../DataStructures/Common/Node.c \
+    ../src/parser/http_parser.c \
+    ../src/network/network.c \
+    ../src/handler/http_handler.c \
+    ../tests/test_handler.c \
+    -o handler_test_runner > handler_build.log 2>&1

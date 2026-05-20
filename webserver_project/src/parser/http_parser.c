@@ -10,6 +10,7 @@ void extract_body(struct HTTPRequest *request, char *body);
 char *trim_whitespace(char *str);
 
 struct HTTPRequest http_request_constructor(char *request_string) {
+
     struct HTTPRequest request;
     
     // 1. ALWAYS initialize dictionaries first to prevent segfaults during destruction
@@ -18,8 +19,10 @@ struct HTTPRequest http_request_constructor(char *request_string) {
     request.body = dictionary_constructor(compare_string_keys);
 
     // Safe return on empty input. (The initialized dictionaries will safely be freed by the destructor)
+// 2. SAFE RETURN: If the input string is NULL or completely empty,
+    // return the cleanly initialized structure right away!
     if (!request_string || request_string[0] == '\0') {
-        return request;
+        return request; 
     }
 
     // 2. Make a single, safe mutable copy of the entire request
@@ -64,6 +67,7 @@ struct HTTPRequest http_request_constructor(char *request_string) {
 }
 
 void http_request_destructor(struct HTTPRequest *request) {
+    if(!request) return;
     dictionary_destructor(&request->request_line);
     dictionary_destructor(&request->header_fields);
     dictionary_destructor(&request->body);

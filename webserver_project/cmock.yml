@@ -1,5 +1,9 @@
 :cmock:
-  :mock_path: "test/mocks"
+  :mock_path: "tests/mocks"
   :includes:
     - <stdint.h>
     - <stdbool.h>
+  :plugins:
+    - callback
+    - ignore
+

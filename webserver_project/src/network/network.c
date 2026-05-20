@@ -190,17 +190,22 @@ void network_shutdown(int server_fd) {
 
 
 int send_all(int fd, const char* buf, int len) {
-    int total = 0;        // How many bytes we've sent
-    int bytesleft = len;  // How many we have left to send
+    int total = 0;        
+    int bytesleft = len;  
     int n;
 
     while (total < len) {
         n = send(fd, buf + total, bytesleft, 0);
         
         if (n == -1) {
-            if (errno == EINTR) continue; 
-            if (errno == EAGAIN || errno == EWOULDBLOCK) continue; 
-            break; // Hard error
+            if (errno == EINTR) continue; // Interrupted by a system signal? Safe to retry.
+            
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // The socket buffer is full! Break out and return an error code (-1)
+                // instead of trapping the thread in an infinite loop.
+                return -1; 
+            }
+            break; // General hard error (e.g., connection reset)
         }
         total += n;
         bytesleft -= n;
@@ -258,8 +263,9 @@ void send_error(int fd, int code) {
         case 400: text = "Bad Request"; break;
         case 403: text = "Forbidden"; break;
         case 405: text = "Method Not Allowed"; break;
-        case 411: text = "Length Required"; break; // <-- ADD THIS LINE!
+        case 411: text = "Length Required"; break;
         case 501: text = "Not Implemented"; break;
+        case 505: text = "HTTP/1.1 505 HTTP Version Not Supported"; break;
         default: text = "Internal Server Error"; break;
     }
 
