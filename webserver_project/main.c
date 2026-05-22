@@ -69,11 +69,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf(
-
-        "Starting server with %d worker threads...\n",
-
-        num_of_threads);
+    printf( "Starting server with %d worker threads...\n",num_of_threads);
 
     /* =====================================================
 
