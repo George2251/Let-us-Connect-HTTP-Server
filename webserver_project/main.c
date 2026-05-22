@@ -1,56 +1,164 @@
+/* =========================================================
+ * main.c
+ * ========================================================= */
+
+#include "../include/network.h"
+#include "../include/http_handler.h"
+#include "../include/logger.h"
+#include "../include/thread_pool.h"
+
+#include "../../DataStructures/Dictionary/Dictionary.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 
-#include "include/network.h"
-#include "include/thread_pool.h"
-#include "include/http_handler.h"
-#include "../DataStructures/Dictionary/Dictionary.h"
+/*
+ * Route wrapper
+ */
+static void filesystem_route(
+    int client_fd,
+    struct HTTPRequest *req)
+{
+    handle_filesystem_request(client_fd, req);
+}
 
-
-int main() {
-    // 1. Structural setup: Make sure our targeted filesystem root directory exists
-    // FIX: Changed from "www" to "public" to match your http_handler.c
-    mkdir("public", 0777); 
-    
-    // Create a generic home file if none exists to facilitate immediate evaluation
-    // FIX: Changed paths to "public/index.html"
-    FILE* f = fopen("public/index.html", "r");
-    if (!f) {
-        f = fopen("public/index.html", "w");
-        if (f) {
-            fprintf(f, "<html><body><h1>Let-us-Connect Functional Ecosystem</h1><p>Non-blocking Keep-Alive Operational.</p></body></html>");
-            fclose(f);
-        }
-    } else {
-        fclose(f);
-    }
-
-    printf("Starting Let-us-Connect Server Configuration Pipeline...\n");
-    setup_signals();
-
-    struct Dictionary routes = dictionary_constructor(compare_string_keys);
-    
-    // Map wildcard symbol token to default filesystem core handler 
-    route_handler_t fs_router = handle_filesystem_request;
-    routes.insert(&routes, "*", sizeof("*"), &fs_router, sizeof(route_handler_t));
-
-    thread_pool_t pool;
-    if (thread_pool_init(&pool, 8, THREAD_POOL_SIZE_STATIC, "http_pool") != 0) {
-        fprintf(stderr, "Fatal configuration failure: queue thread engine initialization halted.\n");
-        return -1;
-    }
+int main(int argc, char *argv[])
+{
+    /* =====================================================
+     * Configurations
+     * ===================================================== */
 
     int port = 8080;
-    int server_fd = network_init(port);
-    if (server_fd == -1) return -1;
 
-    network_run_server(server_fd, &pool, &routes);
+    int num_of_threads = 8;
+
+    /*
+     * Example:
+     * ./server 16
+     */
+    if (argc > 1)
+    {
+        num_of_threads = atoi(argv[1]);
+
+        if (num_of_threads <= 0)
+        {
+            num_of_threads = 8;
+        }
+    }
+
+    printf(
+        "Starting server with %d worker threads...\n",
+        num_of_threads);
+
+    /* =====================================================
+     * Setup signals
+     * ===================================================== */
+
+    setup_signals();
+
+    /* =====================================================
+     * Initialize logger
+     * ===================================================== */
+
+    if (logger_init("server.log") != 0)
+    {
+        fprintf(stderr,
+                "Failed to initialize logger\n");
+
+        return 1;
+    }
+
+    /* =====================================================
+     * Initialize thread pool
+     * ===================================================== */
+
+    thread_pool_t pool;
+
+    if (thread_pool_init(
+            &pool,
+            num_of_threads,
+            THREAD_POOL_SIZE_STATIC,
+            "worker_pool") != 0)
+    {
+        fprintf(stderr,
+                "Failed to initialize thread pool\n");
+
+        logger_destroy();
+
+        return 1;
+    }
+
+    /* =====================================================
+     * Create routing table
+     * ===================================================== */
+
+    struct Dictionary routes =
+        dictionary_constructor(compare_string_keys);
+
+    /*
+     * Register default filesystem handler
+     *
+     * "*" means:
+     * any route not explicitly found
+     */
+    route_handler_t fs_handler =
+        filesystem_route;
+
+    routes.insert(
+        &routes,
+        "*",
+        sizeof("*"),
+        &fs_handler,
+        sizeof(route_handler_t));
+
+    /* =====================================================
+     * Initialize server socket
+     * ===================================================== */
+
+    int server_fd = network_init(port);
+
+    if (server_fd == -1)
+    {
+        fprintf(stderr,
+                "Failed to initialize network\n");
+
+        thread_pool_destroy(
+            &pool,
+            THREAD_POOL_DESTROY_SOFT);
+
+        dictionary_destructor(&routes);
+
+        logger_destroy();
+
+        return 1;
+    }
+
+    printf(
+        "Server listening on port %d...\n",
+        port);
+
+    /* =====================================================
+     * Main server loop
+     * ===================================================== */
+
+    network_run_server(
+        server_fd,
+        &pool,
+        &routes);
+
+    /* =====================================================
+     * Cleanup
+     * ===================================================== */
 
     network_shutdown(server_fd);
-    thread_pool_destroy(&pool, THREAD_POOL_DESTROY_HARD);
+
+    thread_pool_destroy(
+        &pool,
+        THREAD_POOL_DESTROY_SOFT);
+
     dictionary_destructor(&routes);
+
+    logger_destroy();
 
     return 0;
 }

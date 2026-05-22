@@ -9,7 +9,7 @@ NET_SRC = src/network/network.c src/network/thread_pool.c src/network/fifo_queue
 PARSER_SRC = src/parser/http_parser.c
 
 # Handler source files
-HANDLER_SRC = src/handler/http_handler.c
+HANDLER_SRC = src/handler/http_handler.c src/handler/logger.c
 
 # Data Structure source files
 DS_SRC = ../DataStructures/Dictionary/Dictionary.c ../DataStructures/Dictionary/Entry.c ../DataStructures/Lists/LinkedList.c ../DataStructures/Lists/Queue.c ../DataStructures/Common/Node.c ../DataStructures/Trees/BinarySearchTree.c
