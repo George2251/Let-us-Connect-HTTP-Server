@@ -33,6 +33,38 @@ LOGGER_SRCS  = ../src/logger/logger.c
 
 TEST_TARGETS = datastructures parser handler network logger
 
+CMOCK_DIR = ../tests/cmock/lib
+CMOCK_GEN = ruby $(CMOCK_DIR)/cmock.rb
+
+# Directories where generated mock artifacts will live
+MOCK_OUT_DIR = main_build_dir/mocks
+
+# Update compiler flags to include the directory containing the newly generated mock headers
+CFLAGS += -I$(MOCK_OUT_DIR) -I$(CMOCK_DIR)
+
+# ------------------------------------------------------------------------------
+# 6. Entry Server main.c CMock Testing Build Pass
+# ------------------------------------------------------------------------------
+main:
+	@mkdir -p $(MOCK_OUT_DIR)
+	
+	@echo "--> [CMock] Auto-generating mock source files from headers..."
+	$(CMOCK_GEN) -oout_c=$(MOCK_OUT_DIR) ../include/network.h
+	$(CMOCK_GEN) -oout_c=$(MOCK_OUT_DIR) ../include/thread_pool.h
+	$(CMOCK_GEN) -oout_c=$(MOCK_OUT_DIR) ../include/logger.h
+	$(CMOCK_GEN) -oout_c=$(MOCK_OUT_DIR) ../../DataStructures/Dictionary/Dictionary.h
+
+	@echo "--> [GCC] Compiling generated mocks and main entry test runner..."
+	$(CC) $(CFLAGS) $(INCLUDES) \
+		$(UNITY_SRCS) $(DS_SRCS) \
+		$(MOCK_OUT_DIR)/mock_network.c \
+		$(MOCK_OUT_DIR)/mock_thread_pool.c \
+		$(MOCK_OUT_DIR)/mock_logger.c \
+		$(MOCK_OUT_DIR)/mock_Dictionary.c \
+		../src/main.c \
+		../tests/test_main.c \
+		$(LDFLAGS) \
+		-o main_build_dir/main_test_runner > main_build_dir/main_build.log 2>&1
 # ... (Keep your existing variables and folder definitions the same) ...
 
 # ------------------------------------------------------------------------------
