@@ -30,8 +30,21 @@ HANDLER_SRCS = ../src/handler/http_handler.c
 LOGGER_SRCS  = ../src/logger/logger.c
 
 # Targeting Specific Active Test Units (Excluding test_main and test_thread_pool)
-TEST_TARGETS = parser handler network logger
 
+TEST_TARGETS = datastructures parser handler network logger
+
+# ... (Keep your existing variables and folder definitions the same) ...
+
+# ------------------------------------------------------------------------------
+# 5. Core Data Structures Unit Testing Build Pass
+# ------------------------------------------------------------------------------
+datastructures:
+	@mkdir -p datastructures_build_dir
+	$(CC) $(CFLAGS) $(INCLUDES) \
+		$(UNITY_SRCS) $(DS_SRCS) \
+		../tests/test_datastructures.c \
+		$(LDFLAGS) \
+		-o datastructures_build_dir/datastructures_test_runner > datastructures_build_dir/datastructures_build.log 2>&1
 # Default rule compiles everything
 all: $(TEST_TARGETS)
 
