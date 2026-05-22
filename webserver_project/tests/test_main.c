@@ -35,7 +35,7 @@ int logger_init(const char *filepath)
 
     if (mock_logger_init_fail)
     {
-        return -1; // Force a mock logger failure state
+        return 1; // Force a mock logger failure state
     }
     return 0;
 }
@@ -48,7 +48,7 @@ int thread_pool_init(thread_pool_t *pool, int num_of_threads, int type, const ch
 {
     if (mock_thread_pool_init_fail)
     {
-        return -1;
+        return 1;
     }
     return 0;
 }
@@ -85,7 +85,7 @@ void handle_filesystem_request(int client_fd, struct HTTPRequest *req)
 void test_main_should_accept_custom_thread_count_argument()
 {
     // we are mocking the main function that takes both args the argc and the argv so we mock them exactly
-    char **mock_argv = {"./server", "16"};
+    char *mock_argv[] = {"./server", "16"};
     int mock_argc = 2;
     int exitCode = run_server_entry(mock_argc, mock_argv);
     // we see if the exit execution is true
@@ -94,7 +94,7 @@ void test_main_should_accept_custom_thread_count_argument()
 // testing if it refueses the negative numbers of thread numbers
 void test_main_should_fallback_gracefully_on_invalid_thread_count()
 {
-    char **mock_argv = {"./server", "-4"};
+    char *mock_argv[] = {"./server", "-4"};
     int mock_argc = 2;
     int exitCode = run_server_entry(mock_argc, mock_argv);
     TEST_ASSERT_EQUAL_INT_MESSAGE(0, exitCode, "Check the if condition of threads at main.c ");
@@ -102,7 +102,7 @@ void test_main_should_fallback_gracefully_on_invalid_thread_count()
 // checking if it make default initialization of the the threads number
 void test_main_should_boot_normally_with_no_arguments_passed()
 {
-    char **mock_argv = {"./server"};
+    char *mock_argv[] = {"./server"};
     int mock_argc = 1;
     int exitCode = run_server_entry(mock_argc, mock_argv);
     TEST_ASSERT_EQUAL_INT_MESSAGE(0, exitCode, "Default initialization failed Check the if condition of threads ");
@@ -113,10 +113,10 @@ void test_main_should_abort_immediately_if_logger_fails_to_initialize()
     mock_logger_init_fail = 1; // causing fail on purpose in the main function
 
     int mock_argc = 1;
-    char **mock_argv = {"./server"};
+    char *mock_argv[] = {"./server"};
     int exitCode = run_server_entry(mock_argc, mock_argv);
 
-    TEST_ASSERT_EQUAL_INT_MESSAGE(0, exitCode, "Logger initializaion failure is not handled Check the logger if condition");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, exitCode, "Logger initializaion failure is not handled Check the logger if condition");
 }
 
 void test_main_should_clean_up_logger_and_abort_if_thread_pool_initialization_fails()
@@ -125,7 +125,7 @@ void test_main_should_clean_up_logger_and_abort_if_thread_pool_initialization_fa
     int mock_argc=1;
     char** mock_argv={"./server"};
     int exitCode= run_server_entry(mock_argc,mock_argv);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(0,exitCode,"Check the threading creation error handling at the end of the main.c");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1,exitCode,"Check the threading creation error handling at the end of the main.c");
 }
 
 void test_main_should_exit_with_error_if_network_fails()
@@ -134,7 +134,7 @@ void test_main_should_exit_with_error_if_network_fails()
         int mock_argc=1;
     char** mock_argv={"./server"};
     int exitCode= run_server_entry(mock_argc,mock_argv);
-        TEST_ASSERT_EQUAL_INT_MESSAGE(0,exitCode,"Check the Network Function error handling at the middle or the end of the main.c");
+        TEST_ASSERT_EQUAL_INT_MESSAGE(1,exitCode,"Check the Network Function error handling at the middle or the end of the main.c");
 
 }
 

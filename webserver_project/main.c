@@ -93,9 +93,7 @@ int main(int argc, char *argv[])
 
     {
 
-        fprintf(stderr,
-
-                "Failed to initialize logger\n");
+        fprintf(stderr,"Failed to initialize logger\n");
 
         return 1;
     }
@@ -108,21 +106,10 @@ int main(int argc, char *argv[])
 
     thread_pool_t pool;
 
-    if (thread_pool_init(
-
-            &pool,
-
-            num_of_threads,
-
-            THREAD_POOL_SIZE_STATIC,
-
-            "worker_pool") != 0)
-
+    if (thread_pool_init(&pool,num_of_threads,THREAD_POOL_SIZE_STATIC, "worker_pool") != 0)
     {
 
-        fprintf(stderr,
-
-                "Failed to initialize thread pool\n");
+        fprintf(stderr,"Failed to initialize thread pool\n");
 
         logger_destroy();
 
@@ -135,9 +122,7 @@ int main(int argc, char *argv[])
 
     * ===================================================== */
 
-    struct Dictionary routes =
-
-        dictionary_constructor(compare_string_keys);
+    struct Dictionary routes = dictionary_constructor(compare_string_keys);
 
     /*
 
@@ -151,21 +136,9 @@ int main(int argc, char *argv[])
 
     */
 
-    route_handler_t fs_handler =
+    route_handler_t fs_handler = filesystem_route;
 
-        filesystem_route;
-
-    routes.insert(
-
-        &routes,
-
-        "*",
-
-        sizeof("*"),
-
-        &fs_handler,
-
-        sizeof(route_handler_t));
+    routes.insert(&routes,"*",sizeof("*"),&fs_handler,sizeof(route_handler_t));
 
     /* =====================================================
 
@@ -176,18 +149,11 @@ int main(int argc, char *argv[])
     int server_fd = network_init(port);
 
     if (server_fd == -1)
-
     {
 
-        fprintf(stderr,
+        fprintf(stderr, "Failed to initialize network\n");
 
-                "Failed to initialize network\n");
-
-        thread_pool_destroy(
-
-            &pool,
-
-            THREAD_POOL_DESTROY_SOFT);
+        thread_pool_destroy(&pool,THREAD_POOL_DESTROY_SOFT);
 
         dictionary_destructor(&routes);
 
@@ -196,11 +162,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf(
-
-        "Server listening on port %d...\n",
-
-        port);
+    printf("Server listening on port %d...\n",port);
 
     /* =====================================================
 
@@ -208,13 +170,7 @@ int main(int argc, char *argv[])
 
     * ===================================================== */
 
-    network_run_server(
-
-        server_fd,
-
-        &pool,
-
-        &routes);
+    network_run_server(server_fd,&pool,&routes);
 
     /* =====================================================
 
@@ -224,11 +180,7 @@ int main(int argc, char *argv[])
 
     network_shutdown(server_fd);
 
-    thread_pool_destroy(
-
-        &pool,
-
-        THREAD_POOL_DESTROY_SOFT);
+    thread_pool_destroy(&pool,THREAD_POOL_DESTROY_SOFT);
 
     dictionary_destructor(&routes);
 

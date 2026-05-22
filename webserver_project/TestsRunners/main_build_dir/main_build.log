@@ -47,34 +47,6 @@
 ../tests/test_main.c:80:67: warning: unused parameter ‘req’ [-Wunused-parameter]
    80 | void handle_filesystem_request(int client_fd, struct HTTPRequest *req)
       |                                               ~~~~~~~~~~~~~~~~~~~~^~~
-../tests/test_main.c: In function ‘test_main_should_accept_custom_thread_count_argument’:
-../tests/test_main.c:88:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
-   88 |     char **mock_argv = {"./server", "16"};
-      |                         ^~~~~~~~~~
-../tests/test_main.c:88:25: note: (near initialization for ‘mock_argv’)
-../tests/test_main.c:88:37: warning: excess elements in scalar initializer
-   88 |     char **mock_argv = {"./server", "16"};
-      |                                     ^~~~
-../tests/test_main.c:88:37: note: (near initialization for ‘mock_argv’)
-../tests/test_main.c: In function ‘test_main_should_fallback_gracefully_on_invalid_thread_count’:
-../tests/test_main.c:97:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
-   97 |     char **mock_argv = {"./server", "-4"};
-      |                         ^~~~~~~~~~
-../tests/test_main.c:97:25: note: (near initialization for ‘mock_argv’)
-../tests/test_main.c:97:37: warning: excess elements in scalar initializer
-   97 |     char **mock_argv = {"./server", "-4"};
-      |                                     ^~~~
-../tests/test_main.c:97:37: note: (near initialization for ‘mock_argv’)
-../tests/test_main.c: In function ‘test_main_should_boot_normally_with_no_arguments_passed’:
-../tests/test_main.c:105:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
-  105 |     char **mock_argv = {"./server"};
-      |                         ^~~~~~~~~~
-../tests/test_main.c:105:25: note: (near initialization for ‘mock_argv’)
-../tests/test_main.c: In function ‘test_main_should_abort_immediately_if_logger_fails_to_initialize’:
-../tests/test_main.c:116:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
-  116 |     char **mock_argv = {"./server"};
-      |                         ^~~~~~~~~~
-../tests/test_main.c:116:25: note: (near initialization for ‘mock_argv’)
 ../tests/test_main.c: In function ‘test_main_should_clean_up_logger_and_abort_if_thread_pool_initialization_fails’:
 ../tests/test_main.c:126:23: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
   126 |     char** mock_argv={"./server"};

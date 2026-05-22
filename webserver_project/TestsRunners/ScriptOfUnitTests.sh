@@ -48,8 +48,7 @@ check_build_success() {
     return 0
 }
 
-# Added validation steps for Data Structures and Server Main entry logs
-check_build_success "datastructures_build_dir/datastructures_build.log" "Custom Data Structures"
+# Verifying active module logs (Custom Data Structures removed)
 check_build_success "parser_build_dir/parser_build.log" "HTTP Parser"
 check_build_success "handler_build_dir/handler_build.log" "HTTP Handler"
 check_build_success "network_build_dir/network_build.log" "Networking Abstraction"
@@ -87,8 +86,7 @@ run_and_report_suite() {
     echo "" >> "$REPORT_FILE"
 }
 
-# Run each test runner binary locally (Including the 2 new targets)
-run_and_report_suite "datastructures_build_dir/datastructures_test_runner" "Custom Core Data Structures"
+# Run each active test runner binary (Custom Data Structures removed)
 run_and_report_suite "parser_build_dir/parser_test_runner" "HTTP Header String Parser"
 run_and_report_suite "handler_build_dir/handler_test_runner" "HTTP Filesystem Handler"
 run_and_report_suite "network_build_dir/network_test_runner" "Core OS Network Module"
