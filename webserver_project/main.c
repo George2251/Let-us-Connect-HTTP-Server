@@ -90,7 +90,6 @@ int main(int argc, char *argv[])
     * ===================================================== */
 
     if (logger_init("server.log") != 0)
-
     {
 
         fprintf(stderr,"Failed to initialize logger\n");
