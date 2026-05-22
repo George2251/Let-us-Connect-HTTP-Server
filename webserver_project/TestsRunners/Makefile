@@ -56,6 +56,7 @@ handler:
 		../src/parser/http_parser.c \
 		../src/network/network.c \
 		../src/handler/http_handler.c \
+		../src/logger/logger.c \
 		../tests/test_handler.c \
 		$(LDFLAGS) \
 		-o handler_build_dir/handler_test_runner > handler_build_dir/handler_build.log 2>&1
