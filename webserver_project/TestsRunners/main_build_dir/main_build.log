@@ -1,0 +1,87 @@
+../tests/test_main.c: In function ‘logger_init’:
+../tests/test_main.c:33:29: warning: unused parameter ‘filepath’ [-Wunused-parameter]
+   33 | int logger_init(const char *filepath)
+      |                 ~~~~~~~~~~~~^~~~~~~~
+../tests/test_main.c: In function ‘thread_pool_init’:
+../tests/test_main.c:47:37: warning: unused parameter ‘pool’ [-Wunused-parameter]
+   47 | int thread_pool_init(thread_pool_t *pool, int num_of_threads, int type, const char *name)
+      |                      ~~~~~~~~~~~~~~~^~~~
+../tests/test_main.c:47:47: warning: unused parameter ‘num_of_threads’ [-Wunused-parameter]
+   47 | int thread_pool_init(thread_pool_t *pool, int num_of_threads, int type, const char *name)
+      |                                           ~~~~^~~~~~~~~~~~~~
+../tests/test_main.c:47:67: warning: unused parameter ‘type’ [-Wunused-parameter]
+   47 | int thread_pool_init(thread_pool_t *pool, int num_of_threads, int type, const char *name)
+      |                                                               ~~~~^~~~
+../tests/test_main.c:47:85: warning: unused parameter ‘name’ [-Wunused-parameter]
+   47 | int thread_pool_init(thread_pool_t *pool, int num_of_threads, int type, const char *name)
+      |                                                                         ~~~~~~~~~~~~^~~~
+../tests/test_main.c: In function ‘thread_pool_destroy’:
+../tests/test_main.c:56:40: warning: unused parameter ‘pool’ [-Wunused-parameter]
+   56 | int thread_pool_destroy(thread_pool_t *pool, int flags)
+      |                         ~~~~~~~~~~~~~~~^~~~
+../tests/test_main.c:56:50: warning: unused parameter ‘flags’ [-Wunused-parameter]
+   56 | int thread_pool_destroy(thread_pool_t *pool, int flags)
+      |                                              ~~~~^~~~~
+../tests/test_main.c: In function ‘network_init’:
+../tests/test_main.c:62:22: warning: unused parameter ‘port’ [-Wunused-parameter]
+   62 | int network_init(int port)
+      |                  ~~~~^~~~
+../tests/test_main.c: In function ‘network_run_server’:
+../tests/test_main.c:72:29: warning: unused parameter ‘server_fd’ [-Wunused-parameter]
+   72 | void network_run_server(int server_fd, thread_pool_t *pool, struct Dictionary *routes)
+      |                         ~~~~^~~~~~~~~
+../tests/test_main.c:72:55: warning: unused parameter ‘pool’ [-Wunused-parameter]
+   72 | void network_run_server(int server_fd, thread_pool_t *pool, struct Dictionary *routes)
+      |                                        ~~~~~~~~~~~~~~~^~~~
+../tests/test_main.c:72:80: warning: unused parameter ‘routes’ [-Wunused-parameter]
+   72 | void network_run_server(int server_fd, thread_pool_t *pool, struct Dictionary *routes)
+      |                                                             ~~~~~~~~~~~~~~~~~~~^~~~~~
+../tests/test_main.c: In function ‘network_shutdown’:
+../tests/test_main.c:76:27: warning: unused parameter ‘server_fd’ [-Wunused-parameter]
+   76 | void network_shutdown(int server_fd)
+      |                       ~~~~^~~~~~~~~
+../tests/test_main.c: In function ‘handle_filesystem_request’:
+../tests/test_main.c:80:36: warning: unused parameter ‘client_fd’ [-Wunused-parameter]
+   80 | void handle_filesystem_request(int client_fd, struct HTTPRequest *req)
+      |                                ~~~~^~~~~~~~~
+../tests/test_main.c:80:67: warning: unused parameter ‘req’ [-Wunused-parameter]
+   80 | void handle_filesystem_request(int client_fd, struct HTTPRequest *req)
+      |                                               ~~~~~~~~~~~~~~~~~~~~^~~
+../tests/test_main.c: In function ‘test_main_should_accept_custom_thread_count_argument’:
+../tests/test_main.c:88:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
+   88 |     char **mock_argv = {"./server", "16"};
+      |                         ^~~~~~~~~~
+../tests/test_main.c:88:25: note: (near initialization for ‘mock_argv’)
+../tests/test_main.c:88:37: warning: excess elements in scalar initializer
+   88 |     char **mock_argv = {"./server", "16"};
+      |                                     ^~~~
+../tests/test_main.c:88:37: note: (near initialization for ‘mock_argv’)
+../tests/test_main.c: In function ‘test_main_should_fallback_gracefully_on_invalid_thread_count’:
+../tests/test_main.c:97:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
+   97 |     char **mock_argv = {"./server", "-4"};
+      |                         ^~~~~~~~~~
+../tests/test_main.c:97:25: note: (near initialization for ‘mock_argv’)
+../tests/test_main.c:97:37: warning: excess elements in scalar initializer
+   97 |     char **mock_argv = {"./server", "-4"};
+      |                                     ^~~~
+../tests/test_main.c:97:37: note: (near initialization for ‘mock_argv’)
+../tests/test_main.c: In function ‘test_main_should_boot_normally_with_no_arguments_passed’:
+../tests/test_main.c:105:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
+  105 |     char **mock_argv = {"./server"};
+      |                         ^~~~~~~~~~
+../tests/test_main.c:105:25: note: (near initialization for ‘mock_argv’)
+../tests/test_main.c: In function ‘test_main_should_abort_immediately_if_logger_fails_to_initialize’:
+../tests/test_main.c:116:25: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
+  116 |     char **mock_argv = {"./server"};
+      |                         ^~~~~~~~~~
+../tests/test_main.c:116:25: note: (near initialization for ‘mock_argv’)
+../tests/test_main.c: In function ‘test_main_should_clean_up_logger_and_abort_if_thread_pool_initialization_fails’:
+../tests/test_main.c:126:23: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
+  126 |     char** mock_argv={"./server"};
+      |                       ^~~~~~~~~~
+../tests/test_main.c:126:23: note: (near initialization for ‘mock_argv’)
+../tests/test_main.c: In function ‘test_main_should_exit_with_error_if_network_fails’:
+../tests/test_main.c:135:23: warning: initialization of ‘char **’ from incompatible pointer type ‘char *’ [-Wincompatible-pointer-types]
+  135 |     char** mock_argv={"./server"};
+      |                       ^~~~~~~~~~
+../tests/test_main.c:135:23: note: (near initialization for ‘mock_argv’)

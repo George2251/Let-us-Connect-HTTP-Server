@@ -38,7 +38,7 @@ check_build_success() {
     local log_file=$1
     local suite_name=$2
     if [ -f "$log_file" ] && [ -s "$log_file" ]; then
-        if grep -q "error:" "$log_file"; then
+        if grep -q "error:" "$log_file" || grep -q "collect2: error:" "$log_file"; then
             echo -e "  --> ${RED}FAILED${NC} to compile ${suite_name} module."
             echo -e "[BUILD ERROR] ${suite_name} failed compilation. Check log details inside: ${log_file}" >> "$REPORT_FILE"
             return 1
@@ -48,10 +48,13 @@ check_build_success() {
     return 0
 }
 
+# Added validation steps for Data Structures and Server Main entry logs
+check_build_success "datastructures_build_dir/datastructures_build.log" "Custom Data Structures"
 check_build_success "parser_build_dir/parser_build.log" "HTTP Parser"
 check_build_success "handler_build_dir/handler_build.log" "HTTP Handler"
 check_build_success "network_build_dir/network_build.log" "Networking Abstraction"
 check_build_success "logger_build_dir/logger_build.log" "Thread-Safe Logger"
+check_build_success "main_build_dir/main_build.log" "Server main.c Orchestration"
 
 echo ""
 echo -e "${YELLOW}[3/3] Executing active test suites (Writing to report file)...${NC}"
@@ -84,11 +87,13 @@ run_and_report_suite() {
     echo "" >> "$REPORT_FILE"
 }
 
-# Run each test runner binary locally
+# Run each test runner binary locally (Including the 2 new targets)
+run_and_report_suite "datastructures_build_dir/datastructures_test_runner" "Custom Core Data Structures"
 run_and_report_suite "parser_build_dir/parser_test_runner" "HTTP Header String Parser"
 run_and_report_suite "handler_build_dir/handler_test_runner" "HTTP Filesystem Handler"
 run_and_report_suite "network_build_dir/network_test_runner" "Core OS Network Module"
 run_and_report_suite "logger_build_dir/logger_test_runner" "Thread-Safe Data Logger"
+run_and_report_suite "main_build_dir/main_test_runner" "Server main.c Core Entry"
 
 echo -e "${BLUE}====================================================================${NC}"
 echo -e "${BLUE}                        EXECUTION SUMMARY                           ${NC}"

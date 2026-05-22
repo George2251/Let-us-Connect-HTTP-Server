@@ -6,3 +6,4 @@
   :plugins:
     - callback
     - ignore
+    - :expect_any_args

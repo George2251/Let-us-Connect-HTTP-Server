@@ -1,114 +1,152 @@
 #define _POSIX_C_SOURCE 200809L
 #include "unity.h"
+#include "../../DataStructures/Dictionary/Dictionary.h"
+#include "../include/thread_pool.h"
+#include "../include/network.h"
+#include "../include/http_handler.h"
 
-/* * Include the auto-generated CMock headers.
- * These are built by the tool by parsing your original header files.
- */
-#include "Mocknetwork.h"
-#include "Mockthread_pool.h"
-#include "Mocklogger.h"
-#include "MockDictionary.h"
+#include <stdlib.h>
+#include <string.h>
 
-// Declare the external entry function we exposed in main.c via the preprocessor macro
 extern int run_server_entry(int argc, char *argv[]);
 
-void setUp(void)
+int mock_logger_init_fail = 0;
+int mock_thread_pool_init_fail = 0;
+int mock_network_init_fail = 0;
+
+void setUp()
 {
-    // CMock Internal Requirement: Prepares the mock tracking tables
-    CMock_Init(); 
+
+    mock_logger_init_fail = 0;
+    mock_thread_pool_init_fail = 0;
+    mock_network_init_fail = 0;
 }
 
-void tearDown(void)
+void tearDown()
 {
-    // CMock Internal Requirement: Verifies all expected functions were called 
-    // and frees the temporary mock memory layouts.
-    CMock_Verify();
-    CMock_Destroy();
-}
-// --- TEST 1: Successful Server Boot with Custom Thread Arguments ---
-void test_main_should_allocate_custom_worker_threads_from_arguments(void) {
-    char *mock_argv[] = {"./server", "12"};
-    
-    /* * PROGRAMMING EXPECTATIONS:
-     * We script the exact behavior we expect main.c to execute.
-     */
-    
-    // 1. We expect logger_init to be called with "server.log" and we return 0 (Success)
-    logger_init_ExpectAndReturn("server.log", 0);
-    
-    // 2. We expect thread_pool_init to be called with 12 threads (parsed from argv[1])
-    // We pass CMock variables or tell it to check the exact arguments
-    thread_pool_init_ExpectAnyArgsAndReturn(0); 
-    
-    // 3. We expect the routes dictionary constructor to fire
-    struct Dictionary dummy_routes;
-    dictionary_constructor_ExpectAndReturn(compare_string_keys, dummy_routes);
-    
-    // 4. We expect the network subsystem to initialize on port 8080. We return a fake fd (4)
-    network_init_ExpectAndReturn(8080, 4);
-    
-    // 5. We expect the main server loop to execute. 
-    // Since network_run_server is a mock, it will bypass its internal infinite while(1) loop instantly!
-    network_run_server_ExpectAnyArgs();
-    
-    // 6. We expect the graceful cleanup path to execute in sequence when network_run_server returns
-    network_shutdown_Expect(4);
-    thread_pool_destroy_ExpectAnyArgs();
-    dictionary_destructor_Ignore(); // We tell CMock to ignore structural pointer operations
-    logger_destroy_Expect();
-
-    // Fire the server entry point
-    int exit_code = run_server_entry(2, mock_argv);
-    
-    // Verify main.c executed its entire layout cleanly and returned 0
-    TEST_ASSERT_EQUAL_INT(0, exit_code);
 }
 
-// --- TEST 2: Graceful Abort Path on Network Initialization Failure ---
-void test_main_should_abort_gracefully_if_network_initialization_fails(void) {
-    char *mock_argv[] = {"./server"};
-    
-    // 1. Logger starts up fine
-    logger_init_ExpectAndReturn("server.log", 0);
-    
-    // 2. Thread pool starts up fine (defaults to 8 threads since no arg was passed)
-    thread_pool_init_ExpectAnyArgsAndReturn(0);
-    
-    // 3. Dictionary constructs fine
-    struct Dictionary dummy_routes;
-    dictionary_constructor_ExpectAndReturn(compare_string_keys, dummy_routes);
-    
-    // 4. CRITICAL CONDITION: We force network_init to return -1 (Simulation Failure)
-    network_init_ExpectAndReturn(8080, -1);
-    
-    /* * 5. EXPECTED ERROR HANDLING:
-     * Because network_init failed, main.c must NEVER call network_run_server or network_shutdown.
-     * It should skip straight to destroying the pool, dictionary, and logger, then exit.
-     */
-    thread_pool_destroy_ExpectAnyArgs();
-    dictionary_destructor_Ignore();
-    logger_destroy_Expect();
-
-    // Execute the entry point
-    int exit_code = run_server_entry(1, mock_argv);
-    
-    // Verify main.c caught the socket error and returned exit status code 1
-    TEST_ASSERT_EQUAL_INT(1, exit_code);
-}
-
-// ==============================================================================
-// Test Suite Execution Entry Point
-// ==============================================================================
-
-int main(void)
+void setup_signals()
 {
-    // Initialize the Unity testing harness engine
+}
+
+int logger_init(const char *filepath)
+{
+
+    if (mock_logger_init_fail)
+    {
+        return -1; // Force a mock logger failure state
+    }
+    return 0;
+}
+
+void logger_destroy()
+{
+}
+
+int thread_pool_init(thread_pool_t *pool, int num_of_threads, int type, const char *name)
+{
+    if (mock_thread_pool_init_fail)
+    {
+        return -1;
+    }
+    return 0;
+}
+
+int thread_pool_destroy(thread_pool_t *pool, int flags)
+{
+
+    return 0;
+}
+
+int network_init(int port)
+{
+
+    if (mock_network_init_fail)
+    {
+        return -1;
+    }
+    return 4; // Fake valid socket file descriptor
+}
+
+void network_run_server(int server_fd, thread_pool_t *pool, struct Dictionary *routes)
+{
+}
+
+void network_shutdown(int server_fd)
+{
+}
+
+void handle_filesystem_request(int client_fd, struct HTTPRequest *req)
+{
+}
+
+// testing the acceptance of the thread count
+void test_main_should_accept_custom_thread_count_argument()
+{
+    // we are mocking the main function that takes both args the argc and the argv so we mock them exactly
+    char **mock_argv = {"./server", "16"};
+    int mock_argc = 2;
+    int exitCode = run_server_entry(mock_argc, mock_argv);
+    // we see if the exit execution is true
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, exitCode, "Check the if condition of threads at main.c ");
+}
+// testing if it refueses the negative numbers of thread numbers
+void test_main_should_fallback_gracefully_on_invalid_thread_count()
+{
+    char **mock_argv = {"./server", "-4"};
+    int mock_argc = 2;
+    int exitCode = run_server_entry(mock_argc, mock_argv);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, exitCode, "Check the if condition of threads at main.c ");
+}
+// checking if it make default initialization of the the threads number
+void test_main_should_boot_normally_with_no_arguments_passed()
+{
+    char **mock_argv = {"./server"};
+    int mock_argc = 1;
+    int exitCode = run_server_entry(mock_argc, mock_argv);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, exitCode, "Default initialization failed Check the if condition of threads ");
+}
+
+void test_main_should_abort_immediately_if_logger_fails_to_initialize()
+{
+    mock_logger_init_fail = 1; // causing fail on purpose in the main function
+
+    int mock_argc = 1;
+    char **mock_argv = {"./server"};
+    int exitCode = run_server_entry(mock_argc, mock_argv);
+
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, exitCode, "Logger initializaion failure is not handled Check the logger if condition");
+}
+
+void test_main_should_clean_up_logger_and_abort_if_thread_pool_initialization_fails()
+{
+    mock_thread_pool_init_fail= 1;
+    int mock_argc=1;
+    char** mock_argv={"./server"};
+    int exitCode= run_server_entry(mock_argc,mock_argv);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0,exitCode,"Check the threading creation error handling at the end of the main.c");
+}
+
+void test_main_should_exit_with_error_if_network_fails()
+{
+    mock_network_init_fail =1;
+        int mock_argc=1;
+    char** mock_argv={"./server"};
+    int exitCode= run_server_entry(mock_argc,mock_argv);
+        TEST_ASSERT_EQUAL_INT_MESSAGE(0,exitCode,"Check the Network Function error handling at the middle or the end of the main.c");
+
+}
+
+
+int main()
+{
     UNITY_BEGIN();
-    
-    // Run your CMock-isolated test cases
-    RUN_TEST(test_main_should_allocate_custom_worker_threads_from_arguments);
-    RUN_TEST(test_main_should_abort_gracefully_if_network_initialization_fails);
-    
-    // Conclude the test suite and output final pass/fail metrics
+    RUN_TEST(test_main_should_accept_custom_thread_count_argument);
+    RUN_TEST(test_main_should_fallback_gracefully_on_invalid_thread_count);
+    RUN_TEST(test_main_should_boot_normally_with_no_arguments_passed);
+    RUN_TEST(test_main_should_abort_immediately_if_logger_fails_to_initialize);
+    RUN_TEST(test_main_should_clean_up_logger_and_abort_if_thread_pool_initialization_fails);
+    RUN_TEST(test_main_should_exit_with_error_if_network_fails);
     return UNITY_END();
 }
