@@ -1,4 +1,4 @@
 ../tests/test_parser.c: In function ‘test_http_parser_header_with_no_value’:
-../tests/test_parser.c:97:11: warning: unused variable ‘val’ [-Wunused-variable]
-   97 |     char* val = (char*)req.header_fields.search(&req.header_fields, "affected-header", sizeof("affected-header"));
+../tests/test_parser.c:96:11: warning: unused variable ‘val’ [-Wunused-variable]
+   96 |     char* val = (char*)req.header_fields.search(&req.header_fields, "affected-header", sizeof("affected-header"));
       |           ^~~
