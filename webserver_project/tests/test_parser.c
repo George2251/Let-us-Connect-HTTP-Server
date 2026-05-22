@@ -5,19 +5,18 @@
 #include <stdio.h>
 
 void setUp(void) {
-    // No mock initialization needed! This is a pure unit test.
+
 }
 
 void tearDown(void) {
-    // No mock cleanup needed!
 }
-
-// --- TEST 1: Standard GET Request ---
+// we gave a test line to the parser and we compare the expectation with what we want 
 void test_http_parser_should_extract_request_line_correctly(void) {
     char raw_request[] = "GET /index.html HTTP/1.1\r\nHost: localhost\r\n\r\n";
     
+// we generate the request 
     struct HTTPRequest req = http_request_constructor(raw_request);
-
+    // now we try to find the method to compare it 
     char* method = (char*)req.request_line.search(&req.request_line, "method", sizeof("method"));
     char* uri = (char*)req.request_line.search(&req.request_line, "uri", sizeof("uri"));
     char* version = (char*)req.request_line.search(&req.request_line, "http_version", sizeof("http_version"));
@@ -30,7 +29,7 @@ void test_http_parser_should_extract_request_line_correctly(void) {
     http_request_destructor(&req);
 }
 
-// --- TEST 2: Header Lowercasing (Testing your recent fix!) ---
+// --- TEST 2: Header Lowercasing  ---
 void test_http_parser_should_force_headers_to_lowercase(void) {
     char raw_request[] = "GET / HTTP/1.1\r\nContent-Length: 42\r\nKeep-Alive: timeout=5\r\n\r\n";
     
@@ -78,30 +77,14 @@ void test_http_parser_should_extract_url_encoded_body_fields(void) {
 void test_http_parser_should_not_crash_on_empty_string(void) {
     char raw_request[] = "";
     
-    printf("\n--- Testing the crash ---\n");
-    printf("[1] Before constructor - Sending empty string.\n");
-    
     struct HTTPRequest req = http_request_constructor(raw_request);
-
-    printf("[2] After constructor - Structure returned successfully!\n");
-    printf("    Address of request_line dictionary: %p\n", (void*)&req.request_line);
-    printf("    Address of search function pointer: %p\n", (void*)req.request_line.search);
-
-    // Safety guard to catch uninitialized or garbage function pointers early
-    if (req.request_line.search == NULL) {
-        printf("    [CRITICAL ALERT]: The search function pointer is NULL! Calling it will crash.\n");
-    } else {
-        printf("    [INFO]: The search function pointer exists. Attempting execution...\n");
-    }
 
     // This is the line where the application falls over
     char* method = (char*)(req.request_line.search(&req.request_line, "method", sizeof("method")));
     
-    printf("[3] After search execution - Result: %p\n", (void*)method);
     TEST_ASSERT_NULL_MESSAGE(method, "Method should be NULL for an empty request");
 
     http_request_destructor(&req);
-    printf("---  TEST 4 END ---\n\n");
 }
 void test_http_parser_header_with_no_value(void) {
     // A colon with nothing after it, followed immediately by the end of headers

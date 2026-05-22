@@ -1,0 +1,20 @@
+gcc -Wall -Wextra -g -DTEST -I../include -I../tests/unity -I../../DataStructures/Dictionary -I../../DataStructures/Common -I../../DataStructures/Trees -I../../DataStructures/Lists \
+	../tests/unity/unity.c ../../DataStructures/Dictionary/Dictionary.c ../../DataStructures/Dictionary/Entry.c ../../DataStructures/Trees/BinarySearchTree.c ../../DataStructures/Lists/LinkedList.c ../../DataStructures/Common/Node.c ../src/parser/http_parser.c \
+	../tests/test_parser.c \
+	-lpthread \
+	-o parser_build_dir/parser_test_runner > parser_build_dir/parser_build.log 2>&1
+gcc -Wall -Wextra -g -DTEST -I../include -I../tests/unity -I../../DataStructures/Dictionary -I../../DataStructures/Common -I../../DataStructures/Trees -I../../DataStructures/Lists \
+	../tests/unity/unity.c ../../DataStructures/Dictionary/Dictionary.c ../../DataStructures/Dictionary/Entry.c ../../DataStructures/Trees/BinarySearchTree.c ../../DataStructures/Lists/LinkedList.c ../../DataStructures/Common/Node.c ../src/parser/http_parser.c ../src/network/network.c ../src/handler/http_handler.c \
+	../tests/test_handler.c \
+	-lpthread \
+	-o handler_build_dir/handler_test_runner > handler_build_dir/handler_build.log 2>&1
+gcc -Wall -Wextra -g -DTEST -I../include -I../tests/unity -I../../DataStructures/Dictionary -I../../DataStructures/Common -I../../DataStructures/Trees -I../../DataStructures/Lists \
+	../tests/unity/unity.c ../../DataStructures/Dictionary/Dictionary.c ../../DataStructures/Dictionary/Entry.c ../../DataStructures/Trees/BinarySearchTree.c ../../DataStructures/Lists/LinkedList.c ../../DataStructures/Common/Node.c ../src/parser/http_parser.c ../src/network/network.c \
+	../tests/test_network.c \
+	-lpthread \
+	-o network_build_dir/network_test_runner > network_build_dir/network_build.log 2>&1
+gcc -Wall -Wextra -g -DTEST -I../include -I../tests/unity -I../../DataStructures/Dictionary -I../../DataStructures/Common -I../../DataStructures/Trees -I../../DataStructures/Lists \
+	../tests/unity/unity.c ../src/logger/logger.c \
+	../tests/test_logger.c \
+	-lpthread \
+	-o logger_test_runner_bin > logger_build_dir/logger_build.log 2>&1

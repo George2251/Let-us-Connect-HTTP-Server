@@ -1,0 +1,98 @@
+--------------------------------------------------------------------
+>>> SYSTEM SUITE: HTTP Header String Parser
+--------------------------------------------------------------------
+../tests/test_parser.c:151:test_http_parser_should_extract_request_line_correctly:PASS
+../tests/test_parser.c:152:test_http_parser_should_force_headers_to_lowercase:PASS
+../tests/test_parser.c:153:test_http_parser_should_extract_url_encoded_body_fields:PASS
+../tests/test_parser.c:154:test_http_parser_should_not_crash_on_empty_string:PASS
+../tests/test_parser.c:155:test_http_parser_header_with_no_value:PASS
+../tests/test_parser.c:156:test_http_parser_multiple_spaces_in_request_line:PASS
+../tests/test_parser.c:157:test_http_parser_header_with_only_spaces:PASS
+../tests/test_parser.c:158:test_http_parser_invalid_url_encoded_body:PASS
+
+-----------------------
+8 Tests 0 Failures 0 Ignored 
+OK
+
+--------------------------------------------------------------------
+>>> SYSTEM SUITE: HTTP Filesystem Handler
+--------------------------------------------------------------------
+../tests/test_handler.c:176:test_handler_should_reject_path_traversal_with_403:PASS
+../tests/test_handler.c:177:test_handler_should_serve_existing_html_file:PASS
+
+--- Received POST Payload data ---
+data=handler_saved
+----------------------------------
+../tests/test_handler.c:178:test_handler_should_save_post_payload_to_file:PASS
+../tests/test_handler.c:181:test_handler_should_resolve_extensionless_url_by_appending_html:PASS
+../tests/test_handler.c:182:test_handler_should_return_404_for_non_existent_file:PASS
+../tests/test_handler.c:183:test_handler_should_reject_invalid_http_version_with_505:PASS
+../tests/test_handler.c:184:test_handler_should_reject_post_without_content_length_with_411:PASS
+
+-----------------------
+7 Tests 0 Failures 0 Ignored 
+OK
+
+--------------------------------------------------------------------
+>>> SYSTEM SUITE: Core OS Network Module
+--------------------------------------------------------------------
+Server successfully initialized and listening on port 8085
+
+Shutting down server...
+../tests/test_network.c:215:test_network_init_should_bind_and_listen_on_available_port:PASS
+../tests/test_network.c:216:test_make_nonblocking_should_apply_flags_correctly:PASS
+../tests/test_network.c:217:test_send_all_should_transmit_complete_buffer:PASS
+Server successfully initialized and listening on port 8086
+
+Shutting down server...
+../tests/test_network.c:220:test_check_keepalive_timeouts_should_purge_expired_connections:PASS
+../tests/test_network.c:221:test_setup_signals_should_ignore_sigpipe:PASS
+../tests/test_network.c:222:test_send_all_should_handle_large_buffers_without_data_truncation:PASS
+../tests/test_network.c:225:test_send_all_should_break_on_blocking_buffers:PASS
+Server successfully initialized and listening on port 8089
+
+Shutting down server...
+../tests/test_network.c:226:test_network_should_not_busy_loop_on_fd_exhaustion:PASS
+../tests/test_network.c:227:test_network_processing_should_reject_negative_content_lengths:PASS
+
+-----------------------
+9 Tests 0 Failures 0 Ignored 
+OK
+
+--------------------------------------------------------------------
+>>> SYSTEM SUITE: Thread-Safe Data Logger
+--------------------------------------------------------------------
+../tests/test_logger.c:200:test_logger_should_log_to_stdout_when_filepath_is_null:PASS
+../tests/test_logger.c:201:test_logger_should_safely_ignore_calls_after_destruction:PASS
+../tests/test_logger.c:202:test_logger_should_preserve_existing_logs_between_restarts:PASS
+
+-----------------------
+7 Tests 0 Failures 0 Ignored 
+OK
+
+--------------------------------------------------------------------
+>>> SYSTEM SUITE: Server main.c Core Entry
+--------------------------------------------------------------------
+Failed to initialize logger
+Failed to initialize thread pool
+Failed to initialize network
+Starting server with 16 worker threads...
+Server listening on port 8080...
+../tests/test_main.c:145:test_main_should_accept_custom_thread_count_argument:PASS
+Starting server with 8 worker threads...
+Server listening on port 8080...
+../tests/test_main.c:146:test_main_should_fallback_gracefully_on_invalid_thread_count:PASS
+Starting server with 8 worker threads...
+Server listening on port 8080...
+../tests/test_main.c:147:test_main_should_boot_normally_with_no_arguments_passed:PASS
+Starting server with 8 worker threads...
+../tests/test_main.c:148:test_main_should_abort_immediately_if_logger_fails_to_initialize:PASS
+Starting server with 8 worker threads...
+../tests/test_main.c:149:test_main_should_clean_up_logger_and_abort_if_thread_pool_initialization_fails:PASS
+Starting server with 8 worker threads...
+../tests/test_main.c:150:test_main_should_exit_with_error_if_network_fails:PASS
+
+-----------------------
+6 Tests 0 Failures 0 Ignored 
+OK
+
